@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TheNetwrk Dashboard</title>
+  <link rel="stylesheet" href="../css/dashboard.css">
+</head>
+<body>
+  <div class="app-container">
+    <header class="app-header">
+      <div class="logo">
+        <h1>TheNetwrk</h1>
+        <p class="subtitle">Prospect Dashboard</p>
+      </div>
+      <div class="header-actions">
+        <button id="refresh-data" class="icon-button" title="Refresh Data">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M23 4v6h-6"></path>
+            <path d="M1 20v-6h6"></path>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+          </svg>
+        </button>
+        <button id="settings" class="icon-button" title="Settings">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </button>
+      </div>
+    </header>
+    
+    <div class="stats-bar">
+      <div class="stat-card">
+        <span class="stat-value" id="total-prospects">0</span>
+        <span class="stat-label">Total Prospects</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value" id="contacted-count">0</span>
+        <span class="stat-label">Contacted</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value" id="responded-count">0</span>
+        <span class="stat-label">Responded</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value" id="conversion-rate">0%</span>
+        <span class="stat-label">Conversion Rate</span>
+      </div>
+    </div>
+    
+    <div class="filters">
+      <div class="search-container">
+        <input type="text" id="search-input" placeholder="Search prospects...">
+        <button id="search-button" class="search-button">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+        </button>
+      </div>
+      
+      <div class="filter-container">
+        <select id="status-filter">
+          <option value="all">All Statuses</option>
+          <option value="new">New</option>
+          <option value="contacted">Contacted</option>
+          <option value="responded">Responded</option>
+          <option value="not-interested">Not Interested</option>
+        </select>
+        
+        <button id="clear-filters" class="text-button">Clear Filters</button>
+      </div>
+    </div>
+    
+    <div class="data-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th class="sortable" data-sort="name">Name</th>
+            <th class="sortable" data-sort="headline">Headline</th>
+            <th class="sortable" data-sort="location">Location</th>
+            <th class="sortable" data-sort="email">Email</th>
+            <th class="sortable" data-sort="status">Status</th>
+            <th class="sortable" data-sort="contactAttempts">Contact Attempts</th>
+            <th class="sortable" data-sort="dateAdded">Date Added</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="prospects-table-body">
+          <!-- Prospects will be loaded here -->
+          <tr class="empty-row">
+            <td colspan="8" class="empty-message">No prospects found. Start by visiting LinkedIn profiles.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <div class="pagination">
+      <button id="prev-page" class="pagination-button" disabled>
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+      </button>
+      <span id="pagination-info">Page 1 of 1</span>
+      <button id="next-page" class="pagination-button" disabled>
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+      </button>
+    </div>
+    
+    <!-- Prospect Detail Modal -->
+    <div id="prospect-modal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Prospect Details</h2>
+          <button class="close-modal">&times;</button>
+        </div>
+        <div class="modal-body" id="prospect-detail-content">
+          <!-- Prospect details will be loaded here -->
+        </div>
+        <div class="modal-footer">
+          <button id="send-message" class="primary-button">Send Message</button>
+          <button class="close-button">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script src="../js/dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TheNetwrk Extension</title>
+  <link rel="stylesheet" href="../css/popup.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>TheNetwrk</h1>
+      <p class="subtitle">LinkedIn Outreach Tool</p>
+    </div>
+    
+    <div class="stats-container">
+      <div class="stat-box">
+        <span class="stat-value" id="total-prospects">0</span>
+        <span class="stat-label">Total Prospects</span>
+      </div>
+      <div class="stat-box">
+        <span class="stat-value" id="contacted">0</span>
+        <span class="stat-label">Contacted</span>
+      </div>
+      <div class="stat-box">
+        <span class="stat-value" id="responded">0</span>
+        <span class="stat-label">Responded</span>
+      </div>
+    </div>
+    
+    <div class="action-buttons">
+      <button id="view-dashboard" class="primary-button">View Dashboard</button>
+      <button id="settings" class="secondary-button">Settings</button>
+    </div>
+    
+    <div class="current-profile-section">
+      <h2>Current Profile</h2>
+      <div id="profile-data">
+        <p class="empty-state">No LinkedIn profile detected</p>
+      </div>
+    </div>
+    
+    <div class="footer">
+      <p>Visit <a href="https://welcometothenetwork.xyz/" target="_blank">welcometothenetwork.xyz</a></p>
+    </div>
+  </div>
+  
+  <script src="../js/popup.js"></script>
+</body>
+</html>

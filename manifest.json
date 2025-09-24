@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "TheNetwrk Outreach",
+  "version": "1.0.0",
+  "description": "LinkedIn outreach tool for TheNetwrk",
+  "permissions": [
+    "storage",
+    "tabs",
+    "scripting",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://*.linkedin.com/*"
+  ],
+  "background": {
+    "service_worker": "src/js/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*.linkedin.com/*"],
+      "js": ["src/js/content.js"]
+    }
+  ],
+  "action": {
+    "default_popup": "src/pages/popup.html",
+    "default_icon": {
+      "16": "src/assets/icon16.png",
+      "48": "src/assets/icon48.png",
+      "128": "src/assets/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "src/assets/icon16.png",
+    "48": "src/assets/icon48.png",
+    "128": "src/assets/icon128.png"
+  }
+}

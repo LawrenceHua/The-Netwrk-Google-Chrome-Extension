@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TheNetwrk Settings</title>
+  <link rel="stylesheet" href="../css/settings.css">
+</head>
+<body>
+  <div class="settings-container">
+    <header class="settings-header">
+      <h1>TheNetwrk Settings</h1>
+      <div class="nav-links">
+        <a href="dashboard.html">Dashboard</a>
+      </div>
+    </header>
+    
+    <div class="settings-section">
+      <h2>Message Templates</h2>
+      <p class="section-description">
+        Customize the messages sent to prospects. Use {{name}} to insert the recipient's first name.
+      </p>
+      
+      <div class="template-list" id="template-list">
+        <!-- Templates will be loaded here -->
+      </div>
+      
+      <div class="template-actions">
+        <button id="save-templates" class="primary-button">Save Templates</button>
+        <button id="reset-templates" class="secondary-button">Reset to Default</button>
+      </div>
+    </div>
+    
+    <div class="settings-section">
+      <h2>Email Settings</h2>
+      <div class="form-group">
+        <label for="email-sender">Sender Email</label>
+        <input type="email" id="email-sender" placeholder="Your email address">
+      </div>
+      <div class="form-group">
+        <label for="email-name">Sender Name</label>
+        <input type="text" id="email-name" placeholder="Your name">
+      </div>
+      <div class="form-group">
+        <label for="follow-up-days">Days between follow-ups</label>
+        <input type="number" id="follow-up-days" min="1" max="30" value="1">
+      </div>
+      <div class="form-group">
+        <button id="save-email-settings" class="primary-button">Save Email Settings</button>
+      </div>
+    </div>
+    
+    <div class="settings-section">
+      <h2>Data Management</h2>
+      <div class="data-actions">
+        <button id="export-data" class="secondary-button">Export All Data</button>
+        <button id="clear-data" class="danger-button">Clear All Data</button>
+      </div>
+    </div>
+    
+    <div class="settings-section">
+      <h2>About</h2>
+      <div class="about-content">
+        <p><strong>TheNetwrk Outreach Extension</strong></p>
+        <p>Version 1.0.0</p>
+        <p>This extension is designed to help you connect with potential job seekers on LinkedIn and invite them to join TheNetwrk community.</p>
+        <p><a href="https://welcometothenetwork.xyz/" target="_blank">Visit TheNetwrk Website</a></p>
+      </div>
+    </div>
+  </div>
+  
+  <script src="../js/settings.js"></script>
+</body>
+</html>
