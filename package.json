@@ -1,14 +1,11 @@
 {
   "name": "thenetwrk-chrome-extension",
   "version": "2.0.0",
-  "description": "AI-powered Chrome extension for multi-platform job seeker discovery and outreach",
-  "main": "manifest.json",
+  "description": "AI-powered Chrome extension that discovers job seekers across multiple platforms",
   "scripts": {
     "start": "cd backend && npm start",
-    "install-backend": "cd backend && npm install",
-    "test": "cd backend && npm test",
-    "build": "echo 'Chrome extension - no build step required'",
-    "dev": "cd backend && npm run dev"
+    "dev": "cd backend && npm run dev",
+    "install-backend": "cd backend && npm install"
   },
   "repository": {
     "type": "git",
@@ -17,21 +14,16 @@
   "keywords": [
     "chrome-extension",
     "linkedin",
-    "job-seeker",
+    "job-seekers",
     "ai",
     "recruitment",
     "outreach",
-    "email-automation",
-    "multi-platform",
-    "contact-discovery"
+    "multi-platform"
   ],
   "author": "Lawrence Hua <lawrencehua2@gmail.com>",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/LawrenceHua/The-Netwrk-Google-Chrome-Extension/issues"
   },
-  "homepage": "https://github.com/LawrenceHua/The-Netwrk-Google-Chrome-Extension#readme",
-  "engines": {
-    "node": ">=16.0.0"
-  }
+  "homepage": "https://github.com/LawrenceHua/The-Netwrk-Google-Chrome-Extension#readme"
 }

@@ -1,148 +1,196 @@
-// Popup script for TheNetwrk extension
+/**
+ * TheNetwrk Popup - 2-Phase Approach
+ * Phase 1: Collect URLs (lightweight)
+ * Phase 2: Deep research (comprehensive)
+ */
 
-// DOM elements
-const totalProspectsElement = document.getElementById('total-prospects');
-const contactedElement = document.getElementById('contacted');
-const respondedElement = document.getElementById('responded');
-const profileDataElement = document.getElementById('profile-data');
-const viewDashboardButton = document.getElementById('view-dashboard');
-const settingsButton = document.getElementById('settings');
+document.addEventListener('DOMContentLoaded', init);
 
-// Initialize the popup
-document.addEventListener('DOMContentLoaded', initializePopup);
-
-// Initialize popup content
-function initializePopup() {
-  // Load statistics
+function init() {
   loadStats();
-  
-  // Check current tab for LinkedIn profile
-  checkCurrentTab();
-  
-  // Set up button listeners
-  setupButtonListeners();
+  setupButtons();
 }
 
-// Load statistics from storage
 function loadStats() {
-  chrome.storage.local.get('stats', (result) => {
-    const stats = result.stats || { total: 0, contacted: 0, responded: 0 };
+  chrome.storage.local.get(['prospects', 'urlsCollected'], (result) => {
+    const prospects = result.prospects || [];
+    const urls = result.urlsCollected || [];
     
-    totalProspectsElement.textContent = stats.total;
-    contactedElement.textContent = stats.contacted;
-    respondedElement.textContent = stats.responded;
-  });
-}
-
-// Check if current tab is a LinkedIn profile
-function checkCurrentTab() {
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    const currentTab = tabs[0];
+    document.getElementById('prospect-count').textContent = prospects.length;
     
-    // Check if we're on LinkedIn
-    if (currentTab.url.includes('linkedin.com/in/')) {
-      // Get profile data from content script
-      chrome.tabs.sendMessage(
-        currentTab.id, 
-        { action: 'getProfileData' },
-        (response) => {
-          if (response && response.profileData) {
-            displayProfileData(response.profileData);
-          } else {
-            displayEmptyProfileState();
-          }
-        }
-      );
-    } else {
-      displayEmptyProfileState('Navigate to a LinkedIn profile');
+    // Enable research button if we have prospects to research
+    const researchBtn = document.getElementById('start-research');
+    if (prospects.length > 0) {
+      researchBtn.disabled = false;
+      researchBtn.textContent = `🔬 Research Prospects`;
     }
   });
 }
 
-// Display profile data in the popup
-function displayProfileData(profileData) {
-  profileDataElement.innerHTML = '';
-  
-  // Create profile display
-  const fields = [
-    { label: 'Name', value: profileData.name },
-    { label: 'Headline', value: profileData.headline },
-    { label: 'Location', value: profileData.location },
-    { label: 'Email', value: profileData.email || 'Not available' },
-    { label: 'Likely Job Seeker', value: profileData.isLikelyJobSeeker ? 'Yes' : 'Maybe' }
-  ];
-  
-  fields.forEach(field => {
-    const fieldElement = document.createElement('div');
-    fieldElement.className = 'profile-field';
+function setupButtons() {
+  // Phase 1: Start URL collection
+  document.getElementById('start-url-collection').addEventListener('click', () => {
+    console.log('🔍 POPUP: URL Collection button clicked!');
     
-    const labelElement = document.createElement('div');
-    labelElement.className = 'field-label';
-    labelElement.textContent = field.label;
+    const keywordCount = parseInt(document.getElementById('keyword-count').value) || 20;
+    const pagesPerKeyword = parseInt(document.getElementById('pages-per-keyword').value) || 3;
     
-    const valueElement = document.createElement('div');
-    valueElement.className = 'field-value';
-    valueElement.textContent = field.value;
+    console.log('🔍 POPUP: Starting URL collection with', keywordCount, 'keywords,', pagesPerKeyword, 'pages each');
     
-    fieldElement.appendChild(labelElement);
-    fieldElement.appendChild(valueElement);
-    profileDataElement.appendChild(fieldElement);
-  });
-  
-  // Add action button
-  const actionButton = document.createElement('button');
-  actionButton.className = 'primary-button';
-  actionButton.style.width = '100%';
-  actionButton.style.marginTop = '10px';
-  actionButton.textContent = 'Add to Prospects';
-  actionButton.addEventListener('click', () => saveCurrentProfile(profileData));
-  
-  profileDataElement.appendChild(actionButton);
-}
-
-// Display empty state message
-function displayEmptyProfileState(message = 'No LinkedIn profile detected') {
-  profileDataElement.innerHTML = `<p class="empty-state">${message}</p>`;
-}
-
-// Save the current profile to prospects
-function saveCurrentProfile(profileData) {
-  chrome.runtime.sendMessage(
-    { action: 'saveProspect', data: profileData },
-    (response) => {
-      if (response.success) {
-        const successMsg = document.createElement('p');
-        successMsg.textContent = 'Profile added successfully!';
-        successMsg.style.color = 'green';
-        successMsg.style.textAlign = 'center';
-        successMsg.style.marginTop = '10px';
-        
-        profileDataElement.appendChild(successMsg);
-        
-        // Update stats
-        loadStats();
-      } else {
-        const errorMsg = document.createElement('p');
-        errorMsg.textContent = response.error || 'Error adding profile';
-        errorMsg.style.color = 'red';
-        errorMsg.style.textAlign = 'center';
-        errorMsg.style.marginTop = '10px';
-        
-        profileDataElement.appendChild(errorMsg);
+    // Get current tab
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (!tabs[0]) {
+        console.error('❌ POPUP: No active tab');
+        alert('No active tab');
+        return;
       }
-    }
-  );
-}
-
-// Set up button event listeners
-function setupButtonListeners() {
-  // Open dashboard in new tab
-  viewDashboardButton.addEventListener('click', () => {
-    chrome.tabs.create({ url: chrome.runtime.getURL('src/pages/dashboard.html') });
+      
+      console.log('🔍 POPUP: Sending message to tab', tabs[0].id);
+      console.log('🔍 POPUP: Tab URL:', tabs[0].url);
+      
+      // Send to background script to handle navigation
+      chrome.runtime.sendMessage({
+        action: 'startMassiveSearch',
+        keywordCount: keywordCount,
+        pagesPerKeyword: pagesPerKeyword,
+        currentTabId: tabs[0].id
+      }, (response) => {
+        console.log('🔍 POPUP: Received response:', response);
+        
+        if (chrome.runtime.lastError) {
+          console.error('❌ POPUP: Runtime error:', chrome.runtime.lastError);
+          const errorMsg = chrome.runtime.lastError.message || JSON.stringify(chrome.runtime.lastError);
+          alert('Error: ' + errorMsg + '\n\nMake sure you are on a LinkedIn page and refresh it.');
+          return;
+        }
+        
+        if (response && response.success) {
+          console.log('✅ POPUP: Success! Found', response.profiles.length, 'profiles');
+          
+          // Save basic profiles to dashboard immediately
+          chrome.runtime.sendMessage({
+            action: 'saveBulkProfiles',
+            profiles: response.profiles
+          }, (saveResponse) => {
+            if (saveResponse && saveResponse.success) {
+              alert(`✅ Found ${response.profiles.length} job seekers!\n\nSaved ${saveResponse.savedCount} to dashboard.\n\nClick "Start Deep Research" to enhance with AI analysis.`);
+              
+              // Also save URLs for Phase 2 enhancement
+              chrome.storage.local.set({ 
+                urlsCollected: response.profiles 
+              }, () => {
+                console.log('✅ POPUP: URLs saved for Phase 2');
+                loadStats(); // Refresh UI
+              });
+    } else {
+              alert('Found profiles but failed to save to dashboard: ' + (saveResponse?.error || 'Unknown error'));
+            }
+          });
+  } else {
+          console.error('❌ POPUP: Failed:', response);
+          alert('Failed: ' + (response?.error || 'Unknown error'));
+        }
+      });
+    });
   });
   
-  // Open settings in new tab
-  settingsButton.addEventListener('click', () => {
-    chrome.tabs.create({ url: chrome.runtime.getURL('src/pages/settings.html') });
+  // Phase 2: Start deep research
+  document.getElementById('start-research').addEventListener('click', () => {
+    console.log('Starting deep research...');
+    
+    const researchLimit = parseInt(document.getElementById('research-limit').value) || 10;
+    
+    chrome.runtime.sendMessage({
+      action: 'startDeepResearch',
+      researchLimit: researchLimit
+    }, (response) => {
+      if (response && response.success) {
+        alert(`✅ Deep research started!\n\nWill research ${researchLimit} prospects. Watch your browser work. This will take 5-10 minutes per 10 profiles.`);
+        
+        // Show progress
+        document.getElementById('research-status').style.display = 'block';
+        
+        // Disable button during research
+        document.getElementById('start-research').disabled = true;
+        document.getElementById('start-research').textContent = '🔄 Researching...';
+      } else {
+        alert('Failed to start research: ' + (response?.error || 'Unknown error'));
+      }
+    });
+  });
+  
+  // View dashboard
+  document.getElementById('view-dashboard').addEventListener('click', () => {
+    chrome.tabs.create({
+      url: chrome.runtime.getURL('src/pages/dashboard.html')
+    });
+  });
+  
+  // Manual capture
+  document.getElementById('capture-current').addEventListener('click', () => {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]) {
+        chrome.tabs.sendMessage(tabs[0].id, { action: 'captureProfile' }, (response) => {
+          if (response && response.success) {
+            chrome.runtime.sendMessage({
+              action: 'saveProspect',
+              prospect: response.profile
+            }, (saveResponse) => {
+              if (saveResponse && saveResponse.success) {
+                alert(`✅ Captured: ${response.profile.name}`);
+                loadStats();
+              }
+            });
+          } else {
+            alert('Not on a LinkedIn profile page');
+          }
+        });
+      }
+    });
   });
 }
+
+// Listen for real-time updates
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  // Real-time stats updates during massive search
+  if (request.action === 'updateStats') {
+    console.log('📊 POPUP: Real-time update:', request);
+    
+    // Update prospect count
+    const prospectCount = document.getElementById('prospect-count');
+    if (prospectCount) {
+      prospectCount.textContent = request.totalProspects;
+    }
+    
+    // Update research button text
+    const researchBtn = document.getElementById('start-research');
+    if (researchBtn && request.totalProspects > 0) {
+      researchBtn.disabled = false;
+      researchBtn.textContent = `🔬 Research Prospects`;
+    }
+    
+    console.log(`📊 POPUP: Updated to ${request.totalProspects} prospects`);
+  }
+  
+  // Research progress updates
+  if (request.action === 'researchProgress') {
+    const progress = document.getElementById('research-progress');
+    const fill = document.getElementById('progress-fill');
+    
+    if (progress && fill) {
+      progress.textContent = `${request.completed}/${request.total}`;
+      const percentage = (request.completed / request.total) * 100;
+      fill.style.width = percentage + '%';
+    }
+    
+    // Re-enable button when complete
+    if (request.completed === request.total) {
+      document.getElementById('start-research').disabled = false;
+      document.getElementById('start-research').textContent = '✅ Research Complete';
+      
+      setTimeout(() => {
+        alert(`✅ Research complete!\n\n${request.total} prospects analyzed.\n\nCheck the dashboard to review and send messages.`);
+      }, 1000);
+    }
+  }
+});

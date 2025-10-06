@@ -1,4 +1,4 @@
-# 🌐 TheNetwrk - AI-Powered LinkedIn Prospect Discovery
+# 🌐 TheNetwrk - AI-Powered Multi-Platform Prospect Discovery
 
 <div align="center">
 
@@ -6,10 +6,10 @@
 
 **Discover job seekers across multiple platforms, analyze with AI, and send personalized outreach emails**
 
-[![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white)](https://chrome.google.com/webstore)
-[![JavaScript](https://img.shields.io/badge/JavaScript-ES6+-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
-[![Node.js](https://img.shields.io/badge/Node.js-Backend-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
-[![AI Powered](https://img.shields.io/badge/AI-Powered-FF6B6B?style=for-the-badge&logo=openai&logoColor=white)](https://openai.com/)
+[![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-green?style=for-the-badge&logo=google-chrome)](https://chrome.google.com/webstore)
+[![JavaScript](https://img.shields.io/badge/JavaScript-ES6+-yellow?style=for-the-badge&logo=javascript)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
+[![Node.js](https://img.shields.io/badge/Node.js-Backend-green?style=for-the-badge&logo=node.js)](https://nodejs.org/)
+[![AI Powered](https://img.shields.io/badge/AI-Powered-blue?style=for-the-badge&logo=openai)](https://openai.com/)
 
 </div>
 
@@ -28,15 +28,36 @@ TheNetwrk is a revolutionary Chrome extension that transforms how you discover a
 
 ## 🎯 How It Works
 
-```
-LinkedIn Profile → Add to TheNetwrk → Multi-Platform Search → AI Analysis → Contact Discovery → Email Outreach
+```mermaid
+graph LR
+    A[LinkedIn Profile] --> B[Add to TheNetwrk]
+    B --> C[Multi-Platform Search]
+    C --> D[AI Analysis]
+    D --> E[Contact Discovery]
+    E --> F[Email Outreach]
+    
+    C --> G[LinkedIn Data]
+    C --> H[Google Search]
+    C --> I[Reddit Posts]
+    C --> J[GitHub Profile]
+    C --> K[Portfolio Sites]
+    
+    G --> D
+    H --> D
+    I --> D
+    J --> D
+    K --> D
+    
+    D --> L[Job Seeker Score]
+    D --> M[Career Stage]
+    D --> N[Personalized Message]
 ```
 
 ### Multi-Platform Discovery Process:
 
 1. **LinkedIn**: Profile data, recent activity, job seeking signals
 2. **Google Search**: `"Name" portfolio email contact`
-3. **Reddit**: `"Name" job search career change`  
+3. **Reddit**: `"Name" job search career change`
 4. **GitHub**: Developer profiles and repositories
 5. **Portfolio Sites**: Behance, Dribbble, personal websites
 6. **AI Analysis**: Job seeker scoring and personalized messaging
@@ -44,12 +65,14 @@ LinkedIn Profile → Add to TheNetwrk → Multi-Platform Search → AI Analysis 
 ## 📋 Quick Start
 
 ### Prerequisites
+
 - Chrome Browser
 - Node.js 16+
 - Gmail account with App Password
 - OpenAI API key
 
 ### Installation
+
 ```bash
 # 1. Clone repository
 git clone https://github.com/LawrenceHua/The-Netwrk-Google-Chrome-Extension.git
@@ -74,28 +97,62 @@ npm start
 # 6. Setup Gmail authentication in extension
 ```
 
+### Step-by-Step Setup Guide
+
+<details>
+<summary>📧 Gmail Setup (Click to expand)</summary>
+
+1. **Enable 2-Factor Authentication** on your Google account
+2. **Generate App Password**:
+   - Go to [Google App Passwords](https://myaccount.google.com/apppasswords)
+   - Select "Mail" → "Other (Custom name)"
+   - Enter "TheNetwrk Extension"
+   - Copy the 16-character password
+3. **Login in Extension**: Use your Gmail + App Password
+
+</details>
+
+<details>
+<summary>🔧 Backend Configuration (Click to expand)</summary>
+
+1. **Create `.env` file** in backend folder:
+```env
+OPENAI_API_KEY=your_openai_api_key_here
+PORT=3000
+```
+
+2. **Start the server**:
+```bash
+cd backend
+npm start
+```
+
+3. **Verify it's running**: Visit `http://localhost:3000/api/health`
+
+</details>
+
 ## 🔍 Multi-Platform Discovery
 
 ### What It Searches For:
 
-**LinkedIn**
+#### **LinkedIn**
 - Profile information and recent activity
 - Job seeking signals in posts/comments
 - Skills, experience, and career stage
 
-**Google Search**
+#### **Google Search**
 - `"John Smith" portfolio website`
 - `"John Smith" site:github.com`
 - `"John Smith" email contact`
 - `"John Smith" @gmail.com`
 
-**Reddit**
+#### **Reddit**
 - `"John Smith" site:reddit.com "looking for work"`
 - Career change discussions
 - Tech pivot conversations
 - Job seeking posts
 
-**Portfolio Sites**
+#### **Portfolio Sites**
 - Behance and Dribbble profiles
 - Personal websites and contact pages
 - GitHub repositories and profiles
@@ -104,15 +161,15 @@ npm start
 
 For each prospect, the AI analyzes:
 
-```javascript
+```json
 {
-  jobSeekerScore: 85,           // 0-100% likelihood of job seeking
-  careerStage: "Mid-level",     // Entry/Mid/Senior/Executive
-  techBackground: "Strong",     // None/Basic/Moderate/Strong
-  industry: "Software Dev",     // Primary industry
-  keySkills: ["React", "Node"], // Top relevant skills
-  jobSeekingSignals: 3,         // Active indicators (0-5)
-  personalizedMessage: "Hi John, I noticed your recent React project..."
+  "jobSeekerScore": 85,           // 0-100% likelihood of job seeking
+  "careerStage": "Mid-level",     // Entry/Mid/Senior/Executive
+  "techBackground": "Strong",     // None/Basic/Moderate/Strong
+  "industry": "Software Dev",     // Primary industry
+  "keySkills": ["React", "Node"], // Top relevant skills
+  "jobSeekingSignals": 3,         // Active indicators (0-5)
+  "personalizedMessage": "Hi John, I noticed your recent React project..."
 }
 ```
 
@@ -162,7 +219,9 @@ POST /api/prospects      # Add new prospect
 ## 🎨 Customization
 
 ### Message Templates
+
 Edit in `src/js/message-drafting.js`:
+
 ```javascript
 function formatLinkedInMessage(name, message) {
   return `Hey ${name},
@@ -176,11 +235,13 @@ Growth Intern at TheNetwrk`;
 ```
 
 ### Scoring Criteria
+
 Modify AI prompts in `backend/server.js` to adjust job seeker scoring.
 
 ## 🧪 Testing
 
 ### Backend API
+
 ```bash
 # Health check
 curl http://localhost:3000/api/health
@@ -192,10 +253,33 @@ curl -X POST http://localhost:3000/api/auth/login \
 ```
 
 ### Extension Testing
+
 1. Load extension in Chrome
 2. Visit LinkedIn profiles
 3. Check console logs (F12)
 4. Verify dashboard functionality
+
+## 📁 Project Structure
+
+```
+TheNetwrk-Google-Chrome-Extension/
+├── src/
+│   ├── assets/          # Extension icons and images
+│   ├── css/             # Stylesheets
+│   ├── js/              # JavaScript modules
+│   │   ├── background.js    # Service worker
+│   │   ├── content.js       # Content script
+│   │   ├── google-scout.js  # Multi-platform search
+│   │   ├── deep-researcher.js # LinkedIn scraping
+│   │   └── ...
+│   └── pages/           # HTML pages
+├── backend/
+│   ├── server.js        # Express server
+│   ├── package.json     # Dependencies
+│   └── .env.example     # Environment template
+├── manifest.json        # Extension manifest
+└── README.md           # This file
+```
 
 ## 🤝 Contributing
 
@@ -214,6 +298,14 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Issues**: [GitHub Issues](https://github.com/LawrenceHua/The-Netwrk-Google-Chrome-Extension/issues)
 - **Email**: lawrencehua2@gmail.com
 
+## 🎯 Roadmap
+
+- [ ] Chrome Web Store publication
+- [ ] Additional platform integrations (Twitter, Instagram)
+- [ ] Advanced AI scoring algorithms
+- [ ] Team collaboration features
+- [ ] Analytics and reporting dashboard
+
 ---
 
 <div align="center">
@@ -221,5 +313,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 **Made with ❤️ by Lawrence Hua**
 
 *Revolutionizing recruitment through AI and multi-platform discovery*
+
+[⭐ Star this repo](https://github.com/LawrenceHua/The-Netwrk-Google-Chrome-Extension) | [🐛 Report Bug](https://github.com/LawrenceHua/The-Netwrk-Google-Chrome-Extension/issues) | [💡 Request Feature](https://github.com/LawrenceHua/The-Netwrk-Google-Chrome-Extension/issues)
 
 </div>

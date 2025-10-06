@@ -1,37 +1,67 @@
 {
   "manifest_version": 3,
-  "name": "TheNetwrk Outreach",
-  "version": "1.0.0",
-  "description": "LinkedIn outreach tool for TheNetwrk",
+  "name": "TheNetwrk - Multi-Platform Prospect Discovery",
+  "version": "2.0.0",
+  "description": "AI-powered Chrome extension that discovers job seekers across LinkedIn, Google, Reddit, and GitHub. Find contact information and send personalized outreach emails.",
+  
   "permissions": [
     "storage",
     "tabs",
     "scripting",
     "activeTab"
   ],
+  
   "host_permissions": [
-    "https://*.linkedin.com/*"
+    "https://*.linkedin.com/*",
+    "https://*.google.com/*",
+    "https://*.reddit.com/*",
+    "https://*/*",
+    "http://localhost:*/*"
   ],
+  
   "background": {
     "service_worker": "src/js/background.js"
   },
+  
   "content_scripts": [
     {
-      "matches": ["https://*.linkedin.com/*"],
-      "js": ["src/js/content.js"]
+      "matches": [
+        "https://*.linkedin.com/*",
+        "https://*.google.com/*",  
+        "https://*.reddit.com/*",
+        "https://*/*"
+      ],
+      "js": [
+        "JOB_SEEKER_KEYWORDS.js",
+        "src/js/url-collector.js",
+        "src/js/deep-researcher.js",
+        "src/js/google-scout.js",
+        "src/js/content.js"
+      ],
+      "run_at": "document_idle"
     }
   ],
+  
   "action": {
     "default_popup": "src/pages/popup.html",
+    "default_title": "TheNetwrk - Find Job Seekers",
     "default_icon": {
       "16": "src/assets/icon16.png",
       "48": "src/assets/icon48.png",
       "128": "src/assets/icon128.png"
     }
   },
+  
   "icons": {
     "16": "src/assets/icon16.png",
     "48": "src/assets/icon48.png",
     "128": "src/assets/icon128.png"
-  }
+  },
+  
+  "web_accessible_resources": [
+    {
+      "resources": ["src/assets/*"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }

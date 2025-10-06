@@ -1,9 +1,6 @@
-# Environment variables
+# Environment Variables
 .env
 backend/.env
-
-# Email setup guide (contains sensitive info)
-EMAIL_SETUP_GUIDE.md
 
 # Node modules
 node_modules/
@@ -11,8 +8,20 @@ backend/node_modules/
 
 # Logs
 *.log
-backend/*.log
+logs/
+backend/logs/
+backend/server.log
 backend/server_output.log
+
+# Email Setup Guide (sensitive)
+EMAIL_SETUP_GUIDE.md
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 
 # OS generated files
 .DS_Store
@@ -23,29 +32,33 @@ backend/server_output.log
 ehthumbs.db
 Thumbs.db
 
-# IDE files
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
 # Temporary files
-tmp/
-temp/
 *.tmp
+*.temp
 
-# Build outputs
+# Build artifacts
 dist/
 build/
 
-# Chrome extension private key
+# Package manager files
+package-lock.json
+yarn.lock
+
+# Chrome extension development
 *.pem
+*.crx
+*.zip
 
-# Test files
-coverage/
-.nyc_output/
-
-# Debug files
-debug.log
-error.log
+# Documentation that shouldn't be committed
+SETUP_GUIDE.md
+DIAGNOSIS.md
+CURRENT_STATUS.md
+REBUILD_COMPLETE.md
+FINAL_SOLUTION.md
+FINAL_TEST_GUIDE.md
+SIMPLE_TEST.md
+TEST_NEW_VERSION.md
+AUTO_TEST_REPORT.md
+HYBRID_APPROACH.md
+LINKEDIN_API_SETUP.md
+SCRAPING_DEBUG_INSTRUCTIONS.md
