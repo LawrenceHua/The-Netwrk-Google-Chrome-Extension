@@ -291,7 +291,9 @@ TheNetwrk-Google-Chrome-Extension/
 
 ## 📝 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is proprietary software owned by Lawrence Hua. All rights reserved. See the [LICENSE](LICENSE) file for details.
+
+For permission requests or commercial use, contact: lawrencehua2@gmail.com
 
 ## 📞 Support
 
