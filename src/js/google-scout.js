@@ -4,6 +4,11 @@
  * Scrapes publicly available contact information
  */
 
+// Prevent redeclaration errors
+if (typeof window.GoogleScout !== 'undefined') {
+  console.log('🔄 GoogleScout already loaded, skipping redeclaration');
+} else {
+
 class GoogleScout {
   
   /**
@@ -395,3 +400,5 @@ class GoogleScout {
 window.GoogleScout = GoogleScout;
 
 console.log('✅ Google Scout loaded - Free contact discovery system ready');
+
+} // End of redeclaration guard

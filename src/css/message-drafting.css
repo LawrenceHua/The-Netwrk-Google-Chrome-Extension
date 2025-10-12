@@ -19,6 +19,37 @@ body {
   padding: 20px;
 }
 
+/* Logo Section Styles */
+.logo-image {
+  max-width: 50px;
+  max-height: 50px;
+  margin-right: 15px;
+  object-fit: contain;
+  display: inline-block;
+}
+
+.logo-section {
+  display: flex;
+  align-items: center;
+}
+
+/* Email Status Section */
+.email-status {
+  padding: 10px 15px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: all 0.3s ease;
+  border: 2px solid #ffc107;
+  background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+}
+
+#email-status-text {
+  font-size: 14px;
+  font-weight: 600;
+}
+
 .drafting-header {
   background: white;
   border-radius: 12px;
@@ -1021,4 +1052,207 @@ body {
   background: #fed7d7;
   color: #c53030;
   border: 1px solid #feb2b2;
+}
+
+/* Email Prospects List Styles */
+.email-prospects-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
+  gap: 20px;
+  padding: 20px;
+}
+
+.email-prospect-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  transition: all 0.3s ease;
+  border-left: 4px solid #0073b1;
+}
+
+.email-prospect-card.ready {
+  border-left-color: #28a745;
+  background: linear-gradient(135deg, #ffffff 0%, #f0fff4 100%);
+}
+
+.email-prospect-card.sent {
+  border-left-color: #6c757d;
+  opacity: 0.7;
+}
+
+.email-prospect-card:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  transform: translateY(-2px);
+}
+
+.prospect-name-large {
+  font-size: 18px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.prospect-email-display {
+  font-size: 14px;
+  color: #0073b1;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.prospect-headline-small {
+  font-size: 12px;
+  color: #666;
+  font-style: italic;
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+/* Email Review Card Styles */
+.email-review-card {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  border: 2px solid #e1e5e9;
+}
+
+.email-review-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 15px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.email-number {
+  background: #0073b1;
+  color: white;
+  padding: 4px 10px;
+  border-radius: 16px;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.email-address {
+  color: #666;
+  font-size: 13px;
+  margin-left: auto;
+}
+
+.email-preview {
+  margin: 15px 0;
+}
+
+.email-subject {
+  margin-bottom: 12px;
+  padding: 10px;
+  background: #f8f9fa;
+  border-radius: 6px;
+}
+
+.email-body {
+  margin-top: 12px;
+}
+
+.email-edit {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #e1e5e9;
+  border-radius: 8px;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.email-edit:focus {
+  outline: none;
+  border-color: #0073b1;
+  box-shadow: 0 0 0 3px rgba(0, 115, 177, 0.1);
+}
+
+.email-review-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.btn-approve, .btn-skip, .btn-draft, .btn-view {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 13px;
+}
+
+.btn-approve {
+  background: linear-gradient(135deg, #28a745, #20c997);
+  color: white;
+}
+
+.btn-approve:hover {
+  background: linear-gradient(135deg, #218838, #1ea085);
+  transform: translateY(-1px);
+}
+
+.btn-skip {
+  background: #f8f9fa;
+  color: #6c757d;
+  border: 1px solid #dee2e6;
+}
+
+.btn-skip:hover {
+  background: #e9ecef;
+}
+
+.btn-draft {
+  background: linear-gradient(135deg, #6f42c1, #563d7c);
+  color: white;
+}
+
+.btn-draft:hover {
+  background: linear-gradient(135deg, #563d7c, #452a5c);
+}
+
+.btn-view {
+  background: linear-gradient(135deg, #0073b1, #005a8b);
+  color: white;
+}
+
+.btn-view:hover {
+  background: linear-gradient(135deg, #005a8b, #004170);
+}
+
+.btn-view:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.review-header {
+  padding: 20px;
+  background: linear-gradient(135deg, #0073b1, #005a8b);
+  color: white;
+  border-radius: 12px 12px 0 0;
+  margin: -20px -20px 20px -20px;
+}
+
+.review-header h3 {
+  margin-bottom: 8px;
+}
+
+.review-header p {
+  opacity: 0.9;
+  margin-bottom: 15px;
+}
+
+.bulk-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
 }

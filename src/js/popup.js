@@ -65,30 +65,41 @@ function setupButtons() {
         }
         
         if (response && response.success) {
-          console.log('✅ POPUP: Success! Found', response.profiles.length, 'profiles');
-          
-          // Save basic profiles to dashboard immediately
-          chrome.runtime.sendMessage({
-            action: 'saveBulkProfiles',
-            profiles: response.profiles
-          }, (saveResponse) => {
-            if (saveResponse && saveResponse.success) {
-              alert(`✅ Found ${response.profiles.length} job seekers!\n\nSaved ${saveResponse.savedCount} to dashboard.\n\nClick "Start Deep Research" to enhance with AI analysis.`);
-              
-              // Also save URLs for Phase 2 enhancement
-              chrome.storage.local.set({ 
-                urlsCollected: response.profiles 
-              }, () => {
-                console.log('✅ POPUP: URLs saved for Phase 2');
-                loadStats(); // Refresh UI
-              });
-    } else {
-              alert('Found profiles but failed to save to dashboard: ' + (saveResponse?.error || 'Unknown error'));
-            }
-          });
-  } else {
+          // Check if this is the initial "started" response or the final "completed" response
+          if (response.profiles) {
+            console.log('✅ POPUP: Success! Found', response.profiles.length, 'profiles');
+            
+            // Save basic profiles to dashboard immediately
+            chrome.runtime.sendMessage({
+              action: 'saveBulkProfiles',
+              profiles: response.profiles
+            }, (saveResponse) => {
+              if (saveResponse && saveResponse.success) {
+                alert(`✅ Found ${response.profiles.length} job seekers!\n\nSaved ${saveResponse.savedCount} to dashboard.\n\nClick "Start Deep Research" to enhance with AI analysis.`);
+                
+                // Also save URLs for Phase 2 enhancement
+                chrome.storage.local.set({ 
+                  urlsCollected: response.profiles 
+                }, () => {
+                  console.log('✅ POPUP: URLs saved for Phase 2');
+                  loadStats(); // Refresh UI
+                });
+              } else {
+                alert('Found profiles but failed to save to dashboard: ' + (saveResponse?.error || 'Unknown error'));
+              }
+            });
+          } else {
+            // This is just the "started" confirmation - show different message
+            console.log('✅ POPUP: Search started successfully');
+            alert('✅ Job seeker search started!\n\nThe extension is now searching LinkedIn in the background.\nWatch your browser as it navigates through search results.\n\nThis may take 5-10 minutes to complete.');
+            
+            // Disable button and show progress
+            document.getElementById('start-url-collection').disabled = true;
+            document.getElementById('start-url-collection').textContent = '🔄 Searching LinkedIn...';
+          }
+        } else {
           console.error('❌ POPUP: Failed:', response);
-          alert('Failed: ' + (response?.error || 'Unknown error'));
+          alert('Failed: ' + (response?.error || response?.message || 'Unknown error'));
         }
       });
     });
@@ -169,7 +180,36 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       researchBtn.textContent = `🔬 Research Prospects`;
     }
     
+    // Re-enable the collection button if search is complete
+    if (request.searchComplete) {
+      const collectionBtn = document.getElementById('start-url-collection');
+      if (collectionBtn) {
+        collectionBtn.disabled = false;
+        collectionBtn.textContent = '✅ Search Complete - Start Another?';
+      }
+    }
+    
     console.log(`📊 POPUP: Updated to ${request.totalProspects} prospects`);
+  }
+  
+  // Search completion notification
+  if (request.action === 'searchComplete') {
+    console.log('🎉 POPUP: Search completed!', request);
+    
+    const collectionBtn = document.getElementById('start-url-collection');
+    if (collectionBtn) {
+      collectionBtn.disabled = false;
+      collectionBtn.textContent = '🔍 Start Finding Job Seekers';
+    }
+    
+    // Show completion alert with stop status
+    setTimeout(() => {
+      if (request.wasStopped) {
+        alert(`⛔ Job seeker search stopped by user!\n\n📊 Partial results saved: ${request.uniqueProfilesFound} profiles\n📊 Total prospects: ${request.totalProspects}\n\n🎯 You can resume research or start a new search.`);
+      } else {
+        alert(`🎉 Job seeker search completed!\n\n✅ Found ${request.uniqueProfilesFound} unique profiles\n📊 Total prospects: ${request.totalProspects}\n\n🎯 Next: Click "Start Research & Email Extraction" or check the Dashboard!\n\n💡 Tip: Use Dashboard's Stop button to halt long processes.`);
+      }
+    }, 1000);
   }
   
   // Research progress updates
@@ -186,11 +226,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // Re-enable button when complete
     if (request.completed === request.total) {
       document.getElementById('start-research').disabled = false;
-      document.getElementById('start-research').textContent = '✅ Research Complete';
       
-      setTimeout(() => {
-        alert(`✅ Research complete!\n\n${request.total} prospects analyzed.\n\nCheck the dashboard to review and send messages.`);
-      }, 1000);
+      if (request.wasStopped) {
+        document.getElementById('start-research').textContent = '⛔ Research Stopped';
+        setTimeout(() => {
+          alert(`⛔ Research stopped by user!\n\n📊 Partial progress: ${request.completed} prospects analyzed.\n\nYou can resume research or check the dashboard.`);
+        }, 1000);
+      } else {
+        document.getElementById('start-research').textContent = '✅ Research Complete';
+        setTimeout(() => {
+          alert(`✅ Research complete!\n\n${request.total} prospects analyzed.\n\nCheck the dashboard to review and send messages.`);
+        }, 1000);
+      }
     }
   }
 });

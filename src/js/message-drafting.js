@@ -13,27 +13,54 @@ document.addEventListener('DOMContentLoaded', init);
 
 function init() {
   console.log('🚀 TheNetwrk Message Drafting System loaded');
+  console.log('🔍 Checking DOM elements...');
+  console.log('   - email-status-text:', !!document.getElementById('email-status-text'));
+  console.log('   - email-login-btn:', !!document.getElementById('email-login-btn'));
+  console.log('   - load-prospects:', !!document.getElementById('load-prospects'));
+  console.log('   - bulk-review-and-send:', !!document.getElementById('bulk-review-and-send'));
   
   setupEventListeners();
   updateStats();
-  checkEmailAuth();
+  
+  // Check email auth with delay to ensure server is ready
+  setTimeout(() => {
+    checkEmailAuth();
+  }, 1000);
 }
 
 function setupEventListeners() {
-  // Load prospects button
-  document.getElementById('load-prospects').addEventListener('click', loadJobSeekers);
+  // Load prospects button - load job seekers with emails
+  const loadBtn = document.getElementById('load-prospects');
+  if (loadBtn) {
+    loadBtn.addEventListener('click', loadJobSeekersWithEmails);
+  }
   
-  // Draft all messages button
-  document.getElementById('draft-all-messages').addEventListener('click', draftAllMessages);
+  // Bulk review and send button
+  const bulkReviewBtn = document.getElementById('bulk-review-and-send');
+  if (bulkReviewBtn) {
+    bulkReviewBtn.addEventListener('click', openBulkReviewAndSend);
+  }
   
-  // Bulk review button
-  document.getElementById('bulk-review').addEventListener('click', openBulkReview);
+  // Legacy buttons (keep for backward compatibility)
+  const draftAllBtn = document.getElementById('draft-all-messages');
+  if (draftAllBtn) {
+    draftAllBtn.addEventListener('click', draftAllMessages);
+  }
   
-  // Send all ready messages button
-  document.getElementById('send-all-ready').addEventListener('click', sendAllReadyMessages);
+  const bulkReviewLegacy = document.getElementById('bulk-review');
+  if (bulkReviewLegacy) {
+    bulkReviewLegacy.addEventListener('click', openBulkReview);
+  }
   
-  // Send all emails button
-  document.getElementById('send-all-emails').addEventListener('click', sendAllEmails);
+  const sendReadyBtn = document.getElementById('send-all-ready');
+  if (sendReadyBtn) {
+    sendReadyBtn.addEventListener('click', sendAllReadyMessages);
+  }
+  
+  const sendEmailsBtn = document.getElementById('send-all-emails');
+  if (sendEmailsBtn) {
+    sendEmailsBtn.addEventListener('click', sendAllEmails);
+  }
   
   // Email authentication
   document.getElementById('email-login-btn').addEventListener('click', openEmailModal);
@@ -105,8 +132,9 @@ function handleDynamicClicks(event) {
   }
 }
 
-async function loadJobSeekers() {
-  console.log('🔍 Loading job seekers with 50%+ scores...');
+// Load job seekers with emails specifically
+async function loadJobSeekersWithEmails() {
+  console.log('📧 Loading job seekers with email addresses...');
   
   const loadButton = document.getElementById('load-prospects');
   loadButton.disabled = true;
@@ -117,37 +145,414 @@ async function loadJobSeekers() {
     chrome.storage.local.get(['prospects'], (result) => {
       const allStoredProspects = result.prospects || [];
       
-      // Filter for job seekers with 50%+ score
-      const jobSeekers = allStoredProspects.filter(prospect => {
-        return prospect.jobSeekerScore >= 50 && prospect.isResearched;
+      // Filter for prospects with email addresses (any job seeker score)
+      const prospectsWithEmails = allStoredProspects.filter(prospect => {
+        const hasEmail = (prospect.email && prospect.email.trim()) ||
+                        (prospect.activityEmails && prospect.activityEmails.length > 0);
+        
+        return hasEmail && prospect.isResearched;
       });
       
-      console.log(`✅ Found ${jobSeekers.length} job seekers with 50%+ scores`);
+      console.log(`✅ Found ${prospectsWithEmails.length} prospects with email addresses`);
+      console.log(`📊 Sample prospects:`, prospectsWithEmails.slice(0, 3).map(p => ({
+        name: p.name,
+        email: p.email || p.activityEmails?.[0],
+        score: p.jobSeekerScore
+      })));
       
-      allProspects = jobSeekers.map(prospect => ({
+      allProspects = prospectsWithEmails.map(prospect => ({
         ...prospect,
         messageStatus: 'pending', // pending, drafted, ready, sent
-        draftedMessages: null,
-        selectedMessage: null
+        draftedEmail: null,
+        emailSubject: '',
+        finalEmail: ''
       }));
       
-      renderProspects();
+      // Sort by job seeker score (highest first)
+      allProspects.sort((a, b) => (b.jobSeekerScore || 0) - (a.jobSeekerScore || 0));
+      
+      renderEmailProspectsList();
       updateStats();
       updateButtons();
       
       loadButton.disabled = false;
-      loadButton.textContent = '🔍 Load Job Seekers (50%+)';
+      loadButton.textContent = '📧 Load Job Seekers with Emails';
       
-      if (jobSeekers.length === 0) {
-        showEmptyState('No job seekers found with 50%+ scores. Run Phase 2 research first.');
+      if (prospectsWithEmails.length === 0) {
+        showEmptyState('No prospects with email addresses found. Run prospect research first to find emails.');
+      } else {
+        showNotificationInPage(`📧 Loaded ${prospectsWithEmails.length} job seekers with emails!`, 'success');
       }
     });
     
   } catch (error) {
     console.error('❌ Error loading job seekers:', error);
     loadButton.disabled = false;
-    loadButton.textContent = '🔍 Load Job Seekers (50%+)';
+    loadButton.textContent = '📧 Load Job Seekers with Emails';
     alert('Failed to load job seekers: ' + error.message);
+  }
+}
+
+// Render email prospects list with clean UI
+function renderEmailProspectsList() {
+  console.log('📋 Rendering email prospects list...');
+  
+  const container = document.getElementById('prospects-container');
+  if (!container) return;
+  
+  if (allProspects.length === 0) {
+    showEmptyState('No prospects with emails loaded yet.');
+    return;
+  }
+  
+  let html = '<div class="email-prospects-list">';
+  
+  allProspects.forEach((prospect, index) => {
+    const email = prospect.email || prospect.activityEmails?.[0] || 'No email';
+    const statusClass = prospect.messageStatus || 'pending';
+    const statusIcon = {
+      'pending': '⏳',
+      'drafted': '✍️',
+      'ready': '✅',
+      'sent': '📤'
+    }[statusClass] || '❓';
+    
+    html += `
+      <div class="email-prospect-card ${statusClass}" data-prospect-id="${prospect.id}">
+        <div class="prospect-info">
+          <div class="prospect-name-large">${index + 1}. ${prospect.name}</div>
+          <div class="prospect-email-display">📧 ${email}</div>
+          ${prospect.headline ? `<div class="prospect-headline-small">${prospect.headline.substring(0, 80)}...</div>` : ''}
+          <div class="prospect-meta">
+            <span class="score-badge">Job Seeker: ${prospect.jobSeekerScore || 0}%</span>
+            ${prospect.keyword ? `<span class="keyword-badge">From: ${prospect.keyword}</span>` : ''}
+          </div>
+        </div>
+        <div class="prospect-status-actions">
+          <div class="status-indicator ${statusClass}">${statusIcon} ${statusClass.toUpperCase()}</div>
+        </div>
+      </div>
+    `;
+  });
+  
+  html += '</div>';
+  
+  container.innerHTML = html;
+  console.log(`✅ Rendered ${allProspects.length} prospects with emails`);
+  
+  // Enable bulk review button
+  const bulkBtn = document.getElementById('bulk-review-and-send');
+  if (bulkBtn && allProspects.length > 0) {
+    bulkBtn.disabled = false;
+  }
+}
+
+// Open bulk review and send flow
+async function openBulkReviewAndSend() {
+  console.log('✍️ Starting bulk review and send flow...');
+  
+  if (!emailAuthStatus) {
+    alert('⚠️ Please login with your email credentials first!\n\nClick "📧 Setup Email" to authenticate.');
+    document.getElementById('email-login-btn').click();
+    return;
+  }
+  
+  if (allProspects.length === 0) {
+    alert('No prospects loaded. Click "📧 Load Job Seekers with Emails" first.');
+    return;
+  }
+  
+  const confirmed = confirm(`📧 Bulk Email Campaign\n\nThis will draft personalized emails for ${allProspects.length} prospects with emails.\n\nThis uses AI and may take 1-2 minutes.\n\nContinue?`);
+  if (!confirmed) return;
+  
+  // Draft personalized emails for all prospects
+  showNotificationInPage('✍️ Drafting personalized emails with AI...', 'info');
+  await draftAllPersonalizedEmails();
+  
+  // Show bulk review interface
+  showBulkEmailReviewModal();
+}
+
+// Draft personalized emails for all prospects with proper formatting
+async function draftAllPersonalizedEmails() {
+  console.log(`✍️ Drafting ${allProspects.length} personalized emails...`);
+  
+  for (let i = 0; i < allProspects.length; i++) {
+    const prospect = allProspects[i];
+    
+    console.log(`✍️ [${i + 1}/${allProspects.length}] Drafting for ${prospect.name}...`);
+    
+    try {
+      const personalizedEmail = await draftPersonalizedEmail(prospect);
+      
+      prospect.finalEmail = personalizedEmail;
+      prospect.emailSubject = `Exciting Opportunity for Your Tech Career`;
+      prospect.messageStatus = 'drafted';
+      
+      console.log(`✅ Drafted email for ${prospect.name}`);
+      
+      // Small delay to avoid overwhelming the AI
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+    } catch (error) {
+      console.error(`❌ Failed to draft email for ${prospect.name}:`, error);
+      prospect.messageStatus = 'error';
+      prospect.draftError = error.message;
+    }
+  }
+  
+  console.log(`✅ Completed drafting ${allProspects.length} emails`);
+  renderEmailProspectsList();
+}
+
+// Draft a single personalized email with proper formatting
+async function draftPersonalizedEmail(prospect) {
+  const firstName = prospect.name.split(' ')[0];
+  
+  // Create personalized message based on their profile data
+  let personalizedContent = '';
+  
+  // Personalization based on available data
+  if (prospect.headline && prospect.headline.length > 0) {
+    if (prospect.headline.toLowerCase().includes('engineer') || 
+        prospect.headline.toLowerCase().includes('developer')) {
+      personalizedContent = `I came across your profile and was impressed by your engineering background. `;
+    } else if (prospect.headline.toLowerCase().includes('manager') || 
+               prospect.headline.toLowerCase().includes('director')) {
+      personalizedContent = `I noticed your leadership experience and thought you might be interested in this opportunity. `;
+    } else {
+      personalizedContent = `I came across your profile on LinkedIn and was impressed by your background. `;
+    }
+  } else {
+    personalizedContent = `I wanted to reach out because you might be interested in an exciting opportunity. `;
+  }
+  
+  // Add job seeker context if available
+  if (prospect.jobSeekerScore >= 70) {
+    personalizedContent += `I see you're actively exploring new opportunities in tech. `;
+  } else if (prospect.jobSeekerScore >= 40) {
+    personalizedContent += `Given your background, I thought this might be relevant to your career goals. `;
+  }
+  
+  // Build the complete email with proper formatting
+  const emailBody = `Hi ${firstName},
+
+${personalizedContent}
+
+I wanted to introduce you to TheNetwrk - a community designed to help professionals like you break into and advance in the tech industry.
+
+TheNetwrk offers:
+• Weekly coaching sessions with industry experts
+• Direct connections to YC-backed startups
+• Accountability partners for your job search
+• Exclusive job pipeline and warm introductions
+
+Founded by Abigayle (who landed 8+ offers), we're focused on helping job seekers cut through the noise and land their dream tech roles.
+
+You can learn more and join our community here:
+https://welcometothenetwork.xyz/
+
+Would love to have you as part of the community!
+
+Best,
+Lawrence Hua
+Growth Engineer Intern
+TheNetwrk`;
+
+  return emailBody;
+}
+
+// Show bulk email review modal
+function showBulkEmailReviewModal() {
+  console.log('📋 Opening bulk email review modal...');
+  
+  const modal = document.getElementById('bulk-review-modal');
+  if (!modal) {
+    console.error('❌ Bulk review modal not found');
+    return;
+  }
+  
+  // Build review interface
+  const modalBody = modal.querySelector('.modal-body');
+  if (!modalBody) return;
+  
+  let html = `
+    <div class="bulk-email-review">
+      <div class="review-header">
+        <h3>📧 Review ${allProspects.length} Personalized Emails</h3>
+        <p>Review each email below. You can edit them before sending.</p>
+        <div class="bulk-actions">
+          <button class="action-button success" onclick="sendAllDraftedEmails()">
+            🚀 Send All ${allProspects.length} Emails
+          </button>
+          <button class="action-button secondary" onclick="closeBulkReviewModal()">
+            ❌ Cancel
+          </button>
+        </div>
+      </div>
+      <div class="email-review-list">
+  `;
+  
+  allProspects.forEach((prospect, index) => {
+    const email = prospect.email || prospect.activityEmails?.[0];
+    
+    html += `
+      <div class="email-review-card">
+        <div class="email-review-header">
+          <span class="email-number">#${index + 1}</span>
+          <strong>${prospect.name}</strong>
+          <span class="email-address">→ ${email}</span>
+        </div>
+        <div class="email-preview">
+          <div class="email-subject">
+            <strong>Subject:</strong> ${prospect.emailSubject || 'Exciting Opportunity for Your Tech Career'}
+          </div>
+          <div class="email-body">
+            <textarea class="email-edit" data-prospect-id="${prospect.id}" rows="12">${prospect.finalEmail || ''}</textarea>
+          </div>
+        </div>
+        <div class="email-review-actions">
+          <button class="btn-approve" onclick="approveEmail('${prospect.id}')">✅ Approve</button>
+          <button class="btn-skip" onclick="skipEmail('${prospect.id}')">⏭️ Skip</button>
+        </div>
+      </div>
+    `;
+  });
+  
+  html += `
+      </div>
+    </div>
+  `;
+  
+  modalBody.innerHTML = html;
+  modal.style.display = 'block';
+  
+  // Add change listeners to textareas
+  document.querySelectorAll('.email-edit').forEach(textarea => {
+    textarea.addEventListener('change', (e) => {
+      const prospectId = e.target.dataset.prospectId;
+      const prospect = allProspects.find(p => p.id === prospectId);
+      if (prospect) {
+        prospect.finalEmail = e.target.value;
+        console.log(`📝 Updated email for ${prospect.name}`);
+      }
+    });
+  });
+}
+
+// Send all drafted emails
+async function sendAllDraftedEmails() {
+  const approvedEmails = allProspects.filter(p => p.messageStatus === 'ready' || p.finalEmail);
+  
+  if (approvedEmails.length === 0) {
+    alert('No emails approved for sending. Please approve at least one email.');
+    return;
+  }
+  
+  const confirmed = confirm(`🚀 Send ${approvedEmails.length} Emails?\n\nThis will send personalized emails from your Gmail account.\n\nAre you sure?`);
+  if (!confirmed) return;
+  
+  console.log(`📤 Sending ${approvedEmails.length} emails...`);
+  
+  let sentCount = 0;
+  let failedCount = 0;
+  
+  for (let i = 0; i < approvedEmails.length; i++) {
+    const prospect = approvedEmails[i];
+    const email = prospect.email || prospect.activityEmails?.[0];
+    
+    console.log(`📤 [${i + 1}/${approvedEmails.length}] Sending to ${prospect.name} (${email})...`);
+    
+    try {
+      const response = await fetch('http://localhost:3000/api/send-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to: email,
+          subject: prospect.emailSubject || 'Exciting Opportunity for Your Tech Career',
+          message: prospect.finalEmail,
+          name: prospect.name,
+          senderName: 'Lawrence Hua',
+          profileData: prospect
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        prospect.messageStatus = 'sent';
+        prospect.sentAt = new Date().toISOString();
+        sentCount++;
+        console.log(`✅ Sent to ${prospect.name}`);
+      } else {
+        failedCount++;
+        console.error(`❌ Failed to send to ${prospect.name}:`, result.error);
+      }
+      
+    } catch (error) {
+      failedCount++;
+      console.error(`❌ Error sending to ${prospect.name}:`, error);
+    }
+    
+    // Delay between emails to avoid rate limiting
+    await new Promise(resolve => setTimeout(resolve, 2000));
+  }
+  
+  console.log(`✅ Email campaign complete: ${sentCount} sent, ${failedCount} failed`);
+  
+  closeBulkReviewModal();
+  showNotificationInPage(`📤 Email Campaign Complete!\n\n✅ Sent: ${sentCount}\n❌ Failed: ${failedCount}`, 'success');
+  
+  // Refresh the list
+  renderEmailProspectsList();
+}
+
+// Helper functions for email review
+function approveEmail(prospectId) {
+  const prospect = allProspects.find(p => p.id === prospectId);
+  if (prospect) {
+    prospect.messageStatus = 'ready';
+    console.log(`✅ Approved email for ${prospect.name}`);
+    
+    // Update card visual
+    const card = document.querySelector(`[data-prospect-id="${prospectId}"]`);
+    if (card) {
+      card.classList.remove('pending');
+      card.classList.add('ready');
+      const statusIndicator = card.querySelector('.status-indicator');
+      if (statusIndicator) {
+        statusIndicator.textContent = '✅ READY';
+        statusIndicator.className = 'status-indicator ready';
+      }
+    }
+  }
+}
+
+function skipEmail(prospectId) {
+  const prospect = allProspects.find(p => p.id === prospectId);
+  if (prospect) {
+    prospect.messageStatus = 'skipped';
+    console.log(`⏭️ Skipped email for ${prospect.name}`);
+    
+    // Update card visual
+    const card = document.querySelector(`[data-prospect-id="${prospectId}"]`);
+    if (card) {
+      card.style.opacity = '0.5';
+      const statusIndicator = card.querySelector('.status-indicator');
+      if (statusIndicator) {
+        statusIndicator.textContent = '⏭️ SKIPPED';
+        statusIndicator.className = 'status-indicator skipped';
+      }
+    }
+  }
+}
+
+function closeBulkReviewModal() {
+  const modal = document.getElementById('bulk-review-modal');
+  if (modal) {
+    modal.style.display = 'none';
   }
 }
 
@@ -1071,17 +1476,27 @@ async function checkEmailAuth() {
   
   try {
     const response = await fetch('http://localhost:3000/api/auth/status');
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
     const result = await response.json();
     
-    if (result.authenticated) {
+    console.log('🔐 Auth status response:', result);
+    
+    if (result.authenticated && result.email) {
+      console.log(`✅ Email authenticated: ${result.email}`);
       emailAuthStatus = true;
       updateEmailStatus(true, result.email);
     } else {
+      console.log('❌ Email not authenticated');
       emailAuthStatus = false;
       updateEmailStatus(false);
     }
   } catch (error) {
     console.error('❌ Error checking email auth:', error);
+    console.log('⚠️ Backend server may not be running on port 3000');
     emailAuthStatus = false;
     updateEmailStatus(false);
   }
@@ -1093,16 +1508,39 @@ function updateEmailStatus(authenticated, email = null) {
   const statusText = document.getElementById('email-status-text');
   const loginBtn = document.getElementById('email-login-btn');
   
+  if (!statusText || !loginBtn) {
+    console.error('❌ Email status elements not found in DOM');
+    return;
+  }
+  
   if (authenticated && email) {
+    console.log(`📧 Updating UI to show authenticated: ${email}`);
     statusText.textContent = `✅ Logged in: ${email}`;
     statusText.style.color = '#38a169';
+    statusText.style.fontWeight = '600';
     loginBtn.textContent = '🚪 Logout';
     loginBtn.onclick = emailLogout;
+    
+    // Update email section styling
+    const emailSection = document.getElementById('email-status');
+    if (emailSection) {
+      emailSection.style.background = 'linear-gradient(135deg, #d4edda, #c3e6cb)';
+      emailSection.style.border = '2px solid #28a745';
+    }
   } else {
+    console.log('📧 Updating UI to show NOT authenticated');
     statusText.textContent = '❌ Email not configured';
     statusText.style.color = '#e53e3e';
+    statusText.style.fontWeight = '600';
     loginBtn.textContent = '📧 Setup Email';
     loginBtn.onclick = openEmailModal;
+    
+    // Update email section styling
+    const emailSection = document.getElementById('email-status');
+    if (emailSection) {
+      emailSection.style.background = 'linear-gradient(135deg, #fff3cd, #ffeaa7)';
+      emailSection.style.border = '2px solid #ffc107';
+    }
   }
 }
 

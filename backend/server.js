@@ -1574,6 +1574,364 @@ Return comprehensive JSON with ALL fields:
   }
 });
 
+// AI-powered job seeker and email analysis endpoint
+app.post('/api/analyze-job-seeker-and-emails', async (req, res) => {
+  console.log('\n🤖 ========== AI JOB SEEKER & EMAIL ANALYSIS ==========');
+  console.log('📊 Request received at:', new Date().toISOString());
+  
+  try {
+    const { posts, comments, combinedText, atSymbolText, fullTextSnippet, extractedEmails } = req.body;
+    
+    console.log('📝 Analyzing content:', {
+      postsCount: posts?.length || 0,
+      commentsCount: comments?.length || 0,
+      combinedTextLength: combinedText?.length || 0,
+      atSymbolsText: atSymbolText?.length || 0,
+      fullTextLength: fullTextSnippet?.length || 0,
+      extractedEmailsCount: extractedEmails?.length || 0
+    });
+    
+    // Focused prompt for email extraction from comments with @ symbols
+    const analysisPrompt = `Analyze the following LinkedIn COMMENTS that contain @ symbols for email addresses and contact information:
+
+COMMENTS WITH @ SYMBOLS:
+${combinedText}
+
+@ SYMBOLS FOUND:
+${atSymbolText}
+
+EXTRACTED EMAILS FROM @ SYMBOLS:
+${extractedEmails?.join(', ') || 'None found'}
+
+FOCUS: This analysis is specifically for COMMENTS containing @ symbols. Look for:
+
+CRITICAL: Return ONLY valid JSON without any markdown formatting or code fences.
+
+Please analyze and return:
+1. emails: Array of any email addresses found in the comments with @ symbols
+2. jobSeekerScore (0-100): How likely is this person actively job seeking based on comments?
+3. jobSeekerIndicators: Array of phrases/signals indicating job seeking
+4. analysis: Brief explanation of email findings in comments
+5. confidence: How confident you are in the email extraction (0-100)
+
+PRIORITY: Focus on email extraction from comments containing @ symbols:
+- Look for direct email patterns in comments: name@domain.com
+- Analyze @ mentions that might be email usernames
+- Check for contact phrases: "reach me at @username", "email me @handle"
+- Look for domain hints near @ symbols
+- Validate any emails from the EXTRACTED EMAILS section above
+- Clean up and deduplicate all found emails
+
+SECONDARY: Job seeking signals in comments:
+- Comments about being "open to work" or "looking for opportunities"
+- Networking-related comments
+- Comments asking for referrals or connections
+
+Return ONLY this JSON format (no markdown, no code fences, no extra text):
+{
+  "jobSeekerScore": number,
+  "emails": ["email1@domain.com"],
+  "jobSeekerIndicators": ["indicator1", "indicator2"],
+  "analysis": "explanation",
+  "confidence": number
+}`;
+
+    console.log('🔄 Sending to OpenAI for analysis...');
+    
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are an expert at extracting email addresses from LinkedIn comments containing @ symbols. Your primary focus is finding contact information in comments, not posts. You excel at identifying email patterns, analyzing @ mentions for potential emails, and detecting contact-related phrases. You MUST return ONLY valid JSON without any markdown code fences or extra formatting.'
+        },
+        {
+          role: 'user',
+          content: analysisPrompt
+        }
+      ],
+      response_format: { type: "json_object" }, // Force JSON response
+      max_tokens: 1500,
+      temperature: 0.3 // Lower temperature for more consistent analysis
+    });
+
+    let responseText = completion.choices[0].message.content.trim();
+    console.log('📥 Raw OpenAI response:', responseText);
+    
+    // Clean up response - remove markdown code fences if present
+    if (responseText.includes('```json')) {
+      console.log('🧹 Removing markdown code fences from response...');
+      responseText = responseText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+      console.log('📥 Cleaned response:', responseText);
+    }
+    
+    // Parse JSON response with enhanced error handling
+    let analysisResult;
+    try {
+      analysisResult = JSON.parse(responseText);
+      console.log('✅ Successfully parsed JSON response');
+    } catch (jsonError) {
+      console.error('❌ Failed to parse JSON response:', jsonError);
+      console.error('📄 Attempted to parse:', responseText.substring(0, 200));
+      
+      // Try to extract JSON from text using regex as fallback
+      try {
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          console.log('🔍 Attempting to parse extracted JSON object...');
+          analysisResult = JSON.parse(jsonMatch[0]);
+          console.log('✅ Successfully parsed extracted JSON');
+        } else {
+          throw new Error('No JSON object found in response');
+        }
+      } catch (fallbackError) {
+        console.error('❌ Fallback parsing also failed:', fallbackError.message);
+        // Final fallback - use defaults
+        analysisResult = {
+          jobSeekerScore: 0,
+          emails: [],
+          jobSeekerIndicators: [],
+          analysis: responseText,
+          confidence: 0
+        };
+      }
+    }
+    
+    console.log('✅ Analysis complete:', {
+      jobSeekerScore: analysisResult.jobSeekerScore,
+      emailsFound: analysisResult.emails?.length || 0,
+      indicators: analysisResult.jobSeekerIndicators?.length || 0,
+      confidence: analysisResult.confidence
+    });
+    
+    res.json({
+      success: true,
+      ...analysisResult,
+      processedAt: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Analysis error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      jobSeekerScore: 0,
+      emails: [],
+      jobSeekerIndicators: [],
+      analysis: 'Analysis failed',
+      confidence: 0
+    });
+  }
+});
+
+// Comprehensive job seeker analysis endpoint (called by content script during research)
+app.post('/api/analyze-job-seeker-comprehensive', async (req, res) => {
+  console.log('\n🔬 ========== COMPREHENSIVE PROFILE ANALYSIS ==========');
+  console.log('📊 Request received at:', new Date().toISOString());
+  
+  try {
+    const { 
+      name, headline, about, experiences, skills, 
+      commentsWithAtSymbols, contactEmails, commentEmails, 
+      combinedText, linkedinUrl 
+    } = req.body;
+    
+    console.log('👤 Analyzing:', name);
+    console.log('📝 Headline:', headline?.substring(0, 60));
+    console.log('📄 About section:', about ? `${about.length} chars` : 'Missing');
+    console.log('💼 Experiences:', experiences?.length || 0);
+    console.log('🛠️ Skills:', skills?.length || 0);
+    console.log('💬 Comments with @:', commentsWithAtSymbols?.length || 0);
+    console.log('📧 Contact emails:', contactEmails?.length || 0);
+    console.log('📧 Comment emails:', commentEmails?.length || 0);
+    
+    // Build comprehensive profile text for AI analysis
+    const profileText = `
+NAME: ${name}
+HEADLINE: ${headline || 'Not specified'}
+LINKEDIN: ${linkedinUrl || 'Not provided'}
+
+ABOUT SECTION:
+${about || 'No about section found'}
+
+WORK EXPERIENCE (${experiences?.length || 0} positions):
+${experiences?.map((exp, i) => `${i + 1}. ${exp.title || 'Unknown'} at ${exp.company || 'Unknown'}`).join('\n') || 'No experience data'}
+
+SKILLS (${skills?.length || 0}):
+${skills?.join(', ') || 'No skills found'}
+
+COMMENTS WITH @ SYMBOLS (${commentsWithAtSymbols?.length || 0}):
+${commentsWithAtSymbols?.map(c => `- ${c.text}`).join('\n') || 'No comments found'}
+
+CONTACT EMAILS FOUND:
+${[...(contactEmails || []), ...(commentEmails || [])].join(', ') || 'None'}
+
+FULL PROFILE DATA:
+${combinedText?.substring(0, 5000) || 'No additional data'}
+    `.trim();
+    
+    console.log('📊 Comprehensive profile length:', profileText.length, 'characters');
+    
+    // Create AI analysis prompt
+    const prompt = `Analyze this LinkedIn profile comprehensively to determine if they are a GENUINE JOB SEEKER interested in tech opportunities.
+
+${profileText}
+
+ANALYSIS REQUIREMENTS:
+
+1. JOB SEEKER SCORING (0-100):
+   Look for STRONG signals:
+   - "Open to work" badges or explicit statements
+   - Headlines: "Seeking", "Looking for", "Available for hire", "Transitioning to tech"
+   - Recent graduates, bootcamp graduates, especially coding bootcamps
+   - Career changers transitioning TO tech from any industry
+   - Unemployed, laid off, between roles, especially tech-interested
+   - Posts/comments about job searching, networking for opportunities
+   - Learning tech skills (programming, data analysis, digital marketing)
+   - Expressing interest in technology, coding, or digital careers
+   
+   EXCLUDE (set score to 0):
+   - Recruiters, talent acquisition, headhunters
+   - Career coaches, job coaches, career counselors
+   - Business owners, entrepreneurs offering services
+   - Established professionals NOT actively seeking
+   
+2. CAREER STAGE ASSESSMENT:
+   - Entry Level: 0-2 years, recent grad, bootcamp grad
+   - Mid Level: 3-7 years, established skills
+   - Senior: 8+ years, leadership
+   - Executive: C-level, VP, Director
+
+3. TECH BACKGROUND EVALUATION:
+   - Expert: Senior engineer, architect, technical lead
+   - Strong: Software engineer, developer, data scientist
+   - Some: Product manager, analyst, tech-adjacent
+   - None: No technical background
+
+4. EMAIL EXTRACTION:
+   - Extract all valid email addresses from comments and contact info
+   - Validate format (must be real email addresses)
+   - Clean and deduplicate
+
+Return comprehensive JSON with ALL these fields (dashboard requires them):
+{
+  "jobSeekerScore": <0-100 number>,
+  "isJobSeeker": <boolean, true if score >= 60>,
+  "careerStage": "<Entry/Mid/Senior/Executive>",
+  "techBackground": "<Expert/Strong/Some/None>",
+  "summary": "<2-3 sentence assessment>",
+  "jobSeekerIndicators": ["<specific signals found>"],
+  "jobSeekingSignals": ["<same as jobSeekerIndicators for compatibility>"],
+  "keySkills": ["<top 3-5 relevant skills>"],
+  "industry": "<primary industry>",
+  "confidence": <0-100 confidence in assessment>,
+  "extractedEmails": ["<valid email addresses found>"],
+  "notes": "<any red flags or additional insights>",
+  "experienceYears": <estimated years of experience>,
+  "techProficiency": "<Expert/Advanced/Intermediate/Beginner/None>",
+  "contactability": "<High/Medium/Low>",
+  "remotePreference": "<Yes/No/Unknown>",
+  "networkingActivity": "<High/Medium/Low>",
+  "currentRole": "<current position title>"
+}`;
+
+    console.log('🤖 Sending to OpenAI (GPT-4o) for comprehensive analysis...');
+    
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'system',
+          content: `You are an expert technical recruiter specializing in identifying genuine job seekers for tech opportunities. 
+          
+          You excel at:
+          - Detecting authentic job-seeking signals vs service providers
+          - Assessing technical background and career stage
+          - Extracting and validating contact information
+          - Identifying career changers interested in tech
+          - Spotting bootcamp graduates and self-taught developers
+          
+          Return ONLY valid JSON with comprehensive, accurate analysis.`
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      response_format: { type: "json_object" },
+      max_tokens: 1500,
+      temperature: 0.3
+    });
+    
+    const aiResponse = completion.choices[0].message.content.trim();
+    console.log('✅ AI Response received');
+    
+    // Parse AI response
+    const analysis = JSON.parse(aiResponse);
+    
+    console.log('📊 ANALYSIS RESULTS:');
+    console.log('   Job Seeker Score:', analysis.jobSeekerScore);
+    console.log('   Is Job Seeker:', analysis.isJobSeeker);
+    console.log('   Career Stage:', analysis.careerStage);
+    console.log('   Tech Background:', analysis.techBackground);
+    console.log('   Confidence:', analysis.confidence);
+    console.log('   Emails Found:', analysis.extractedEmails?.length || 0);
+    console.log('   Key Signals:', analysis.jobSeekerIndicators?.slice(0, 3));
+    
+    // Return comprehensive analysis with ALL dashboard fields mapped
+    res.json({
+      success: true,
+      // Core scoring
+      jobSeekerScore: analysis.jobSeekerScore || 0,
+      isJobSeeker: analysis.isJobSeeker || false,
+      confidence: analysis.confidence || 0,
+      
+      // Career assessment
+      careerStage: analysis.careerStage || 'Unknown',
+      techBackground: analysis.techBackground || 'Unknown',
+      industry: analysis.industry || 'Unknown',
+      currentRole: analysis.currentRole || '',
+      
+      // Experience metrics
+      experienceYears: analysis.experienceYears || 0,
+      techProficiency: analysis.techProficiency || 'Unknown',
+      
+      // Contact metrics  
+      contactability: analysis.contactability || 'Unknown',
+      remotePreference: analysis.remotePreference || 'Unknown',
+      networkingActivity: analysis.networkingActivity || 'Unknown',
+      
+      // Text analysis
+      summary: analysis.summary || 'Analysis completed',
+      notes: analysis.notes || '',
+      
+      // Skills and signals
+      keySkills: analysis.keySkills || skills?.slice(0, 5) || [],
+      jobSeekerIndicators: analysis.jobSeekerIndicators || [],
+      jobSeekingSignals: analysis.jobSeekingSignals || analysis.jobSeekerIndicators || [],
+      
+      // Contact info
+      extractedEmails: analysis.extractedEmails || [...new Set([...(contactEmails || []), ...(commentEmails || [])])],
+      
+      // Metadata
+      analysisTimestamp: new Date().toISOString(),
+      tokensUsed: completion.usage?.total_tokens || 'unknown'
+    });
+    
+  } catch (error) {
+    console.error('❌ Comprehensive analysis error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      jobSeekerScore: 0,
+      isJobSeeker: false,
+      careerStage: 'Unknown',
+      techBackground: 'Unknown',
+      summary: 'Analysis failed: ' + error.message
+    });
+  }
+});
+
 // Draft personalized message endpoint
 app.post('/api/draft-message', async (req, res) => {
   console.log('\n✉️ ========== DRAFTING PERSONALIZED NETWRK MESSAGE ==========');

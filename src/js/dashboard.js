@@ -3,17 +3,17 @@
 // DOM elements
 const totalProspectsElement = document.getElementById('total-prospects');
 const contactedCountElement = document.getElementById('contacted-count');
-const respondedCountElement = document.getElementById('responded-count');
-const conversionRateElement = document.getElementById('conversion-rate');
+const fullyResearchedCountElement = document.getElementById('fully-researched-count');
+const emailFoundCountElement = document.getElementById('email-found-count');
 const prospectsTableBody = document.getElementById('prospects-table-body');
 const searchInput = document.getElementById('search-input');
 const searchButton = document.getElementById('search-button');
-const statusFilter = document.getElementById('status-filter');
+const researchStatusFilter = document.getElementById('research-status-filter');
 const clearFiltersButton = document.getElementById('clear-filters');
-const refreshDataButton = document.getElementById('refresh-data');
-const prevPageButton = document.getElementById('prev-page');
-const nextPageButton = document.getElementById('next-page');
-const paginationInfo = document.getElementById('pagination-info');
+const draftMessagesButton = document.getElementById('draft-messages-btn');
+const stopScanningButton = document.getElementById('stop-scanning-btn');
+const exportCsvButton = document.getElementById('export-csv-btn');
+// Pagination elements removed
 const prospectModal = document.getElementById('prospect-modal');
 const prospectDetailContent = document.getElementById('prospect-detail-content');
 // Send message button removed - messaging now handled via bulk operations
@@ -23,10 +23,18 @@ const sendToAllLinkedInButton = document.getElementById('send-to-all-linkedin');
 // State management
 let allProspects = [];
 let filteredProspects = [];
-let currentPage = 1;
-const itemsPerPage = 10;
 let currentSort = { field: 'id', direction: 'asc' }; // Show in order added (1, 2, 3, 4...)
 let selectedProspect = null;
+// Pagination removed - showing all prospects in one scrollable list
+
+// Scanning state management
+let isScanningActive = false;
+let currentScanningType = null; // 'jobSeekers' or 'research'
+let scanningStartTime = null;
+
+// Hidden admin feature - title click counter
+let titleClickCount = 0;
+let titleClickTimer = null;
 
 // Email Preview Modal System
 let emailCampaignData = [];
@@ -405,8 +413,13 @@ function initializeDashboard() {
   console.log('🚀 Dashboard: DOM ready, elements found:', {
     totalProspectsElement: !!totalProspectsElement,
     prospectsTableBody: !!prospectsTableBody,
-    refreshDataButton: !!refreshDataButton
+    draftMessagesButton: !!draftMessagesButton,
+    stopScanningButton: !!stopScanningButton,
+    exportCsvButton: !!exportCsvButton
   });
+  
+  // Initialize button states
+  updateStopButtonVisibility(); // Set initial disabled state
   
   loadProspects();
   setupEventListeners();
@@ -505,14 +518,18 @@ function loadProspects() {
     }
     
     if (response && response.success) {
-      console.log(`📊 Dashboard: Loaded ${response.prospects.length} prospects`);
+      console.log(`📊 DASHBOARD: Loaded ${response.prospects.length} prospects from background script`);
       
-      // Debug: Log all prospect IDs and names
-      console.log('🔍 Dashboard: All prospects:', response.prospects.map(p => ({
+      // Debug: Log research status of all prospects
+      console.log('🔍 DASHBOARD: Prospects research status check:', response.prospects.map(p => ({
         id: p.id,
         name: p.name,
-        dateAdded: p.dateAdded,
-        source: p.source
+        isResearched: p.isResearched,
+        researchStatus: p.researchStatus,
+        email: p.email,
+        activityEmails: p.activityEmails?.length || 0,
+        headline: p.headline ? 'Found' : 'Missing',
+        jobSeekerScore: p.jobSeekerScore || 0
       })));
       
       allProspects = response.prospects || [];
@@ -537,19 +554,13 @@ function updateStats(stats) {
   // Use actual prospect count instead of potentially outdated stats
   const actualTotal = allProspects.length;
   const actualContacted = allProspects.filter(p => p.status === 'contacted' || p.status === 'responded').length;
-  const actualResponded = allProspects.filter(p => p.status === 'responded').length;
-  const actualMembers = allProspects.filter(p => p.status === 'member').length;
+  const fullyResearched = allProspects.filter(p => p.researchStatus === 'fully-researched' || (p.posts && p.posts.length > 0)).length;
   const withEmails = allProspects.filter(p => p.email && p.email !== 'Not available' && p.email !== '' && p.email !== null).length;
   
   totalProspectsElement.textContent = actualTotal;
   contactedCountElement.textContent = actualContacted;
-  respondedCountElement.textContent = actualResponded;
-  
-  // Calculate conversion rate based on members (not just responded)
-  const conversionRate = actualTotal > 0 
-    ? Math.round((actualMembers / actualTotal) * 100) 
-    : 0;
-  conversionRateElement.textContent = `${conversionRate}%`;
+  fullyResearchedCountElement.textContent = fullyResearched;
+  emailFoundCountElement.textContent = withEmails;
   
   // Update bulk email button text and state
   const emailAllButton = document.getElementById('send-to-all-emails');
@@ -565,13 +576,89 @@ function updateStats(stats) {
     }
   }
   
-  console.log('TheNetwrk Dashboard: Updated stats - Total:', actualTotal, 'Contacted:', actualContacted, 'Responded:', actualResponded, 'Members:', actualMembers, 'With Emails:', withEmails);
+  console.log('TheNetwrk Dashboard: Updated stats - Total:', actualTotal, 'Contacted:', actualContacted, 'Fully Researched:', fullyResearched, 'With Emails:', withEmails);
+  
+  // Update export CSV button state
+  if (exportCsvButton) {
+    exportCsvButton.disabled = actualTotal === 0;
+    exportCsvButton.innerHTML = actualTotal > 0 ? `📊 Export CSV (${actualTotal})` : '📊 Export CSV';
+    exportCsvButton.title = actualTotal > 0 ? `Export ${actualTotal} prospects to CSV file` : 'No prospects available to export';
+  }
+}
+
+// Helper function to determine research status
+function getResearchStatus(prospect) {
+  console.log('🔍 DASHBOARD: Determining research status for:', prospect.name, {
+    isResearched: prospect.isResearched,
+    researchStatus: prospect.researchStatus,
+    email: prospect.email,
+    activityEmails: prospect.activityEmails?.length || 0,
+    headline: prospect.headline ? 'Found' : 'Missing',
+    experiences: prospect.experiences?.length || 0,
+    comments: prospect.comments?.length || 0
+  });
+  
+  // First check if we have explicit research status
+  if (prospect.isResearched && prospect.researchStatus) {
+    console.log(`✅ DASHBOARD: Using explicit research status: ${prospect.researchStatus}`);
+    return prospect.researchStatus;
+  }
+  
+  // Check for emails (primary indicator)
+  const hasEmail = (prospect.email && prospect.email !== 'Not available' && prospect.email !== '' && prospect.email !== null) ||
+                   (prospect.activityEmails && prospect.activityEmails.length > 0);
+  
+  if (hasEmail) {
+    console.log('📧 DASHBOARD: Email found - status: email-found');
+    return 'email-found';
+  }
+  
+  // Check if research was completed (has comprehensive data)
+  if (prospect.isResearched) {
+    if (prospect.comments && prospect.comments.length > 0) {
+      console.log('✅ DASHBOARD: Has comments - status: fully-researched');
+      return 'fully-researched';
+    }
+    if (prospect.headline && prospect.headline !== 'undefined' && prospect.headline !== '') {
+      console.log('📝 DASHBOARD: Has headline - status: basic-info');
+      return 'basic-info';
+    }
+  }
+  
+  // Check for any research data
+  if (prospect.headline && prospect.headline !== 'undefined' && prospect.headline !== '') {
+    console.log('📝 DASHBOARD: Basic info found - status: basic-info');
+    return 'basic-info';
+  }
+  
+  console.log('🆕 DASHBOARD: No research data - status: new');
+  return 'new';
+}
+
+// Format research status for display
+function formatResearchStatus(status) {
+  const statusMap = {
+    'new': '🆕 New',
+    'basic-info': '📝 Basic Info',
+    'partially-researched': '🔍 Partial',
+    'fully-researched': '✅ Complete',
+    'email-found': '📧 Email Found',
+    'research-failed': '❌ Failed'
+  };
+  
+  return statusMap[status] || '❓ Unknown';
 }
 
 // Apply filters and sorting to prospects
 function applyFiltersAndSort() {
+  console.log('🔍 DASHBOARD: Applying filters and sorting...');
+  console.log('🔍 DASHBOARD: Total prospects before filtering:', allProspects.length);
+  
   const searchTerm = searchInput.value.toLowerCase();
-  const statusValue = statusFilter.value;
+  const researchStatusValue = researchStatusFilter.value;
+  
+  console.log('🔍 DASHBOARD: Search term:', searchTerm);
+  console.log('🔍 DASHBOARD: Research status filter:', researchStatusValue);
   
   // Filter prospects
   filteredProspects = allProspects.filter(prospect => {
@@ -588,30 +675,76 @@ function applyFiltersAndSort() {
       location.toLowerCase().includes(searchTerm) ||
       email.toLowerCase().includes(searchTerm);
     
-    // Status filter
-    const matchesStatus = statusValue === 'all' || prospect.status === statusValue;
+    // Research status filter
+    const matchesResearchStatus = researchStatusValue === 'all' || getResearchStatus(prospect) === researchStatusValue;
     
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesResearchStatus;
   });
   
-  // Sort prospects
+  console.log('🔍 DASHBOARD: Prospects after filtering:', filteredProspects.length);
+  console.log('🔍 DASHBOARD: First 3 filtered prospects:', filteredProspects.slice(0, 3).map(p => ({ name: p.name, status: getResearchStatus(p) })));
+  
+  // Sort prospects with enhanced handling for all column types
   filteredProspects.sort((a, b) => {
     let valueA = a[currentSort.field];
     let valueB = b[currentSort.field];
     
-    // Handle special cases for sorting
-    if (currentSort.field === 'contactAttempts') {
-      valueA = a.contactAttempts ? a.contactAttempts.length : 0;
-      valueB = b.contactAttempts ? b.contactAttempts.length : 0;
+    console.log(`🔄 Sorting by ${currentSort.field} (${currentSort.direction})`);
+    
+    // Handle special cases for different column types
+    switch (currentSort.field) {
+      case 'name':
+      case 'headline':
+        // String sorting (case-insensitive)
+        valueA = (valueA || '').toLowerCase();
+        valueB = (valueB || '').toLowerCase();
+        break;
+        
+      case 'email':
+        // Email sorting (case-insensitive, empty emails go to end)
+        valueA = (valueA || 'zzzzz').toLowerCase(); // Empty emails sort last
+        valueB = (valueB || 'zzzzz').toLowerCase();
+        break;
+        
+      case 'jobSeekerScore':
+        // Numeric sorting
+        valueA = parseInt(valueA) || 0;
+        valueB = parseInt(valueB) || 0;
+        break;
+        
+      case 'researchStatus':
+        // Status sorting (by priority)
+        const statusPriority = {
+          'email-found': 5,
+          'fully-researched': 4,
+          'partially-researched': 3,
+          'basic-info': 2,
+          'new': 1,
+          'research-failed': 0
+        };
+        valueA = statusPriority[getResearchStatus(a)] || 0;
+        valueB = statusPriority[getResearchStatus(b)] || 0;
+        break;
+        
+      case 'dateAdded':
+        // Date sorting
+        valueA = new Date(valueA || 0).getTime();
+        valueB = new Date(valueB || 0).getTime();
+        break;
+        
+      case 'contactAttempts':
+        // Array length sorting
+        valueA = a.contactAttempts ? a.contactAttempts.length : 0;
+        valueB = b.contactAttempts ? b.contactAttempts.length : 0;
+        break;
+        
+      default:
+        // Default: treat as string
+        valueA = String(valueA || '');
+        valueB = String(valueB || '');
     }
     
-    // Handle dates
-    if (currentSort.field === 'dateAdded') {
-      valueA = new Date(valueA).getTime();
-      valueB = new Date(valueB).getTime();
-    }
-    
-    // Compare values based on sort direction
+    // Apply sort direction
     if (currentSort.direction === 'asc') {
       return valueA > valueB ? 1 : valueA < valueB ? -1 : 0;
     } else {
@@ -619,31 +752,25 @@ function applyFiltersAndSort() {
     }
   });
   
-  // Reset to first page when filters change
-  currentPage = 1;
+  // Update visual sort indicators
+  updateSortIndicators();
   
   // Update UI
   renderProspects();
-  updatePagination();
+  // Pagination removed - showing all prospects
 }
 
 // Render prospects to the table
 function renderProspects() {
-  console.log('🔍 Dashboard: Rendering prospects...');
-  console.log(`📊 Dashboard: Total prospects: ${allProspects.length}`);
-  console.log(`📊 Dashboard: Filtered prospects: ${filteredProspects.length}`);
-  console.log(`📊 Dashboard: Current page: ${currentPage}`);
-  console.log(`📊 Dashboard: Items per page: ${itemsPerPage}`);
+  console.log('🔍 DASHBOARD: Rendering ALL prospects (no pagination)...');
+  console.log(`📊 DASHBOARD: Total prospects: ${allProspects.length}`);
+  console.log(`📊 DASHBOARD: Filtered prospects: ${filteredProspects.length}`);
   
   // Clear existing rows
   prospectsTableBody.innerHTML = '';
   
-  // Calculate page bounds
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = Math.min(startIndex + itemsPerPage, filteredProspects.length);
-  
-  console.log(`📊 Dashboard: Showing items ${startIndex + 1}-${endIndex} of ${filteredProspects.length}`);
-  console.log(`📊 Dashboard: First few prospects:`, filteredProspects.slice(0, 3).map(p => p.name));
+  console.log(`📊 DASHBOARD: Showing ALL ${filteredProspects.length} prospects`);
+  console.log(`📊 DASHBOARD: First few prospects:`, filteredProspects.slice(0, 3).map(p => p.name));
   
   // Show empty message if no prospects
   if (filteredProspects.length === 0) {
@@ -654,28 +781,29 @@ function renderProspects() {
     return;
   }
   
-  // Render each prospect in the current page
-  for (let i = startIndex; i < endIndex; i++) {
+  // Render ALL prospects (no pagination)
+  for (let i = 0; i < filteredProspects.length; i++) {
     const prospect = filteredProspects[i];
+    
+    // Debug: Log prospect data before rendering
+    const prospectStatus = getResearchStatus(prospect);
+    console.log(`🔍 DASHBOARD: Rendering prospect ${i + 1}:`, {
+      name: prospect.name,
+      isResearched: prospect.isResearched,
+      researchStatus: prospect.researchStatus,
+      calculatedStatus: prospectStatus,
+      email: prospect.email,
+      activityEmails: prospect.activityEmails?.length || 0,
+      headline: prospect.headline ? 'Found' : 'Missing',
+      jobSeekerScore: prospect.jobSeekerScore || 0
+    });
+    
     const row = document.createElement('tr');
     
     // Format data for display
-    const dateAdded = new Date(prospect.dateAdded).toLocaleString(); // Include time
-    const status = formatStatus(prospect.status);
+    const dateAdded = new Date(prospect.dateAdded).toLocaleDateString();
     
-    // Format AI insights for display with safe null checks
-    const jobSeekerConfidence = (prospect.jobSeekerScore && typeof prospect.jobSeekerScore === 'number') ? 
-      `${prospect.jobSeekerScore}%` : (prospect.needsResearch ? '🔍 Needs Research' : '-');
-    
-    const careerStage = prospect.careerStage || (prospect.needsResearch ? '🔍 Needs Research' : '-');
-    
-    const techInterest = prospect.techBackground || (prospect.needsResearch ? '🔍 Needs Research' : '-');
-    
-    const aiSummary = (prospect.summary && typeof prospect.summary === 'string') ? 
-      (prospect.summary.length > 60 ? prospect.summary.substring(0, 60) + '...' : prospect.summary) : 
-      (prospect.needsResearch ? '🔍 Awaiting deep research' : '-');
-    
-    // Create clickable row (no action buttons)
+    // Clean and format headline
     row.style.cursor = 'pointer';
     row.className = 'prospect-row';
     row.setAttribute('data-prospect-id', prospect.id);
@@ -692,31 +820,43 @@ function renderProspects() {
         .trim();
     }
     
-    // Add visual indicator for research status
-    const nameClass = prospect.needsResearch ? 'needs-research' : 'researched';
-    const keywordInfo = prospect.keyword ? `<br><span class="keyword-tag">Found via: ${prospect.keyword}</span>` : '';
+    // Clean keyword display
+    const keywordInfo = prospect.keyword ? 
+      `<br><small class="keyword-badge">Keyword: ${prospect.keyword}</small>` : '';
     
     // Check if prospect has email address
     const hasEmail = (prospect.email && prospect.email.trim()) ||
                      (prospect.activityEmails && prospect.activityEmails.length > 0) ||
                      (prospect.googleEmails && prospect.googleEmails.length > 0);
-    const emailIndicator = hasEmail ? 
-      `<br><span class="email-indicator found">📧 Email Found</span>` : 
-      `<br><span class="email-indicator missing">❌ No Email</span>`;
+    
+    // Show headline under name only if available from AI analysis
+    const hasHeadlineFromAI = prospect.isResearched && prospect.headline && prospect.headline.length > 0;
+    const headlineDisplay = hasHeadlineFromAI ? 
+      `<br><small class="ai-headline">${prospect.headline.substring(0, 60)}${prospect.headline.length > 60 ? '...' : ''}</small>` : '';
     
     row.innerHTML = `
-      <td class="${nameClass}">
-        <strong>${prospect.name || 'Unknown'}</strong>
-        <br><small class="headline">${cleanHeadline}</small>
+      <td class="name-cell">
+        <div class="prospect-name">${prospect.name || 'Unknown'}</div>
+        ${headlineDisplay}
         ${keywordInfo}
-        ${emailIndicator}
       </td>
-      <td>${jobSeekerConfidence}</td>
-      <td>${careerStage}</td>
-      <td>${techInterest}</td>
-      <td>${aiSummary}</td>
-      <td>${status}</td>
-      <td><small>${dateAdded}</small></td>
+      <td class="research-cell">
+        <span class="research-status status-${prospectStatus}">${formatResearchStatus(prospectStatus)}</span>
+      </td>
+      <td class="email-cell">
+        <div class="email-status ${hasEmail ? 'has-email' : 'no-email'}">
+          ${hasEmail ? '📧 ' + (prospect.email || prospect.activityEmails?.[0] || prospect.googleEmails?.[0] || 'Found') : '❌ No Email'}
+        </div>
+      </td>
+      <td class="score-cell">
+        <span class="job-seeker-score score-${Math.floor((prospect.jobSeekerScore || 0) / 25)}">${prospect.jobSeekerScore || 0}%</span>
+      </td>
+      <td class="date-cell">
+        <small class="date-added">${dateAdded}</small>
+      </td>
+      <td class="actions-cell">
+        <button class="view-btn" onclick="openProspectDetail('${prospect.id}')">👁️ View</button>
+      </td>
     `;
     
     // Make entire row clickable to show prospect details
@@ -778,14 +918,36 @@ function highlightJobSeekerKeywords(headline) {
   return highlightedHeadline;
 }
 
-// Update pagination controls
-function updatePagination() {
-  const totalPages = Math.max(1, Math.ceil(filteredProspects.length / itemsPerPage));
-  paginationInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+// Pagination removed - all prospects shown in one scrollable list
+
+// Update sort indicators on column headers
+function updateSortIndicators() {
+  // Remove all existing sort indicators
+  document.querySelectorAll('th.sortable').forEach(th => {
+    th.classList.remove('sort-asc', 'sort-desc');
+    
+    // Remove any existing sort arrows
+    const existingArrow = th.querySelector('.sort-arrow');
+    if (existingArrow) {
+      existingArrow.remove();
+    }
+  });
   
-  // Update button states
-  prevPageButton.disabled = currentPage <= 1;
-  nextPageButton.disabled = currentPage >= totalPages;
+  // Add indicator to currently sorted column
+  const currentTh = document.querySelector(`th[data-sort="${currentSort.field}"]`);
+  if (currentTh) {
+    currentTh.classList.add(currentSort.direction === 'asc' ? 'sort-asc' : 'sort-desc');
+    
+    // Add visual arrow
+    const arrow = document.createElement('span');
+    arrow.className = 'sort-arrow';
+    arrow.textContent = currentSort.direction === 'asc' ? ' ▲' : ' ▼';
+    arrow.style.fontSize = '10px';
+    arrow.style.marginLeft = '4px';
+    arrow.style.color = '#0073b1';
+    
+    currentTh.appendChild(arrow);
+  }
 }
 
 // Set up action buttons in the table
@@ -1559,47 +1721,82 @@ function setupEventListeners() {
   });
   
   // Status filter
-  statusFilter.addEventListener('change', () => {
+  researchStatusFilter.addEventListener('change', () => {
     applyFiltersAndSort();
   });
   
   // Clear filters
   clearFiltersButton.addEventListener('click', () => {
     searchInput.value = '';
-    statusFilter.value = 'all';
+    researchStatusFilter.value = 'all';
     applyFiltersAndSort();
   });
   
-  // Refresh data
-  refreshDataButton.addEventListener('click', () => {
-    loadProspects();
-  });
+  // Draft messages button
+  if (draftMessagesButton) {
+    draftMessagesButton.addEventListener('click', () => {
+      openMessageDrafting();
+    });
+  }
   
-  // Message drafting
-  document.getElementById('message-drafting').addEventListener('click', () => {
+  // Stop scanning button
+  if (stopScanningButton) {
+    stopScanningButton.addEventListener('click', () => {
+      stopCurrentScanning();
+    });
+  }
+  
+  // Export CSV button
+  if (exportCsvButton) {
+    exportCsvButton.addEventListener('click', () => {
+      exportToCSV();
+    });
+  }
+  
+  // Hidden admin feature - title click to wipe data
+  const dashboardTitle = document.querySelector('.logo h1, h1');
+  if (dashboardTitle) {
+    dashboardTitle.style.cursor = 'pointer';
+    dashboardTitle.addEventListener('click', () => {
+      handleTitleClick();
+    });
+  }
+  
+  // Only add event listeners for elements that exist
+  const messageComposeBtn = document.getElementById('message-drafting');
+  if (messageComposeBtn) {
+    messageComposeBtn.addEventListener('click', () => {
     chrome.tabs.create({ url: chrome.runtime.getURL('src/pages/message-drafting.html') });
   });
+  }
   
-  // Export to CSV
-  document.getElementById('export-csv').addEventListener('click', () => {
+  const exportBtn = document.getElementById('export-csv');
+  if (exportBtn) {
+    exportBtn.addEventListener('click', () => {
     exportToCSV();
   });
+  }
   
-  // Import from CSV
-  document.getElementById('import-csv').addEventListener('click', () => {
+  const importBtn = document.getElementById('import-csv');
+  if (importBtn) {
+    importBtn.addEventListener('click', () => {
     document.getElementById('csv-file-input').click();
   });
+  }
   
-  // Handle CSV file selection
-  document.getElementById('csv-file-input').addEventListener('change', (event) => {
+  const csvFileInput = document.getElementById('csv-file-input');
+  if (csvFileInput) {
+    csvFileInput.addEventListener('change', (event) => {
     const file = event.target.files[0];
     if (file) {
       importFromCSV(file);
     }
   });
+  }
   
-  // Clear dashboard with password
-  document.getElementById('clear-dashboard').addEventListener('click', () => {
+  const clearBtn = document.getElementById('clear-dashboard');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
     const password = prompt('Enter password to clear all prospects:');
     if (password === '0000') {
       clearDashboard();
@@ -1607,6 +1804,7 @@ function setupEventListeners() {
       alert('Incorrect password');
     }
   });
+  }
   
   // Add debug button to clear all prospects
   const debugClearButton = document.createElement('button');
@@ -1631,37 +1829,39 @@ function exportToCSV() {
   console.log('📊 Exporting prospects to CSV...');
   
   if (allProspects.length === 0) {
-    alert('No prospects to export');
+    showError('No prospects to export. Find some job seekers first!');
     return;
   }
   
-  // Create CSV header
+  // Show loading state
+  if (exportCsvButton) {
+    exportCsvButton.disabled = true;
+    exportCsvButton.innerHTML = '⏳ Exporting...';
+  }
+  
+  // Create CSV header with clean, useful columns (headline included in Name if available from AI)
   const headers = [
-    'Name', 'Headline', 'LinkedIn URL', 'Job Seeker Score', 'Career Stage', 
-    'Tech Background', 'Summary', 'About', 'Email', 'Phone', 'Location',
-    'Skills', 'Experiences', 'Posts', 'Comments', 'Status', 'Keyword', 'Date Added'
+    'Name', 'Headline (from AI)', 'LinkedIn URL', 'Research Status', 'Email', 'Job Seeker Score',
+    'Keyword Found Via', 'Date Added', 'Posts Count', 'Comments Count', 
+    'Skills Count', 'Experience Count', 'About Summary', 'AI Analysis'
   ];
   
-  // Create CSV rows
+  // Create CSV rows matching new structure
   const rows = allProspects.map(p => [
     p.name || '',
-    p.headline || '',
+    p.headline || '', // From AI research
     p.linkedinUrl || '',
-    p.jobSeekerScore || '',
-    p.careerStage || '',
-    p.techBackground || '',
-    p.summary || '',
-    p.about || '',
-    p.email || '',
-    p.phone || '',
-    p.location || '',
-    (p.skills || []).join('; '),
-    (p.experiences || []).map(exp => `${exp.title} at ${exp.company}`).join('; '),
-    (p.posts || []).map(post => post.text).join('; '),
-    (p.comments || []).map(comment => comment.text).join('; '),
-    p.status || '',
+    getResearchStatus(p),
+    p.email || (p.activityEmails && p.activityEmails[0]) || '',
+    p.jobSeekerScore || 0,
     p.keyword || '',
-    p.dateAdded || ''
+    new Date(p.dateAdded).toLocaleDateString(),
+    (p.posts && p.posts.length) || 0,
+    (p.comments && p.comments.length) || 0,
+    (p.skills && p.skills.length) || 0,
+    (p.experiences && p.experiences.length) || 0,
+    p.about ? p.about.substring(0, 200) + (p.about.length > 200 ? '...' : '') : '',
+    p.summary ? p.summary.substring(0, 150) + (p.summary.length > 150 ? '...' : '') : ''
   ]);
   
   // Combine headers and rows
@@ -1678,7 +1878,17 @@ function exportToCSV() {
   a.click();
   
   console.log(`✅ Exported ${allProspects.length} prospects to CSV`);
-  alert(`✅ Exported ${allProspects.length} prospects to CSV file`);
+  
+  // Restore button state
+  setTimeout(() => {
+    if (exportCsvButton) {
+      exportCsvButton.disabled = false;
+      exportCsvButton.innerHTML = '📊 Export CSV';
+    }
+    
+    // Show success message
+    showSuccess(`📊 Successfully exported ${allProspects.length} prospects to CSV file!`);
+  }, 500);
 }
 
 // CSV Import function
@@ -1774,42 +1984,29 @@ console.log('✅ Dashboard: JavaScript loaded and event listeners set up');
   
   // Dashboard ready - no test buttons needed
   
-  // Pagination
-  prevPageButton.addEventListener('click', () => {
-    if (currentPage > 1) {
-      currentPage--;
-      renderProspects();
-      updatePagination();
-    }
-  });
+  // Pagination removed - all prospects shown in one scrollable list
   
-  nextPageButton.addEventListener('click', () => {
-    const totalPages = Math.ceil(filteredProspects.length / itemsPerPage);
-    console.log(`📄 Dashboard: Next page clicked. Current: ${currentPage}, Total: ${totalPages}`);
-    
-    if (currentPage < totalPages) {
-      currentPage++;
-      console.log(`📄 Dashboard: Moving to page ${currentPage}`);
-      renderProspects();
-      updatePagination();
-    } else {
-      console.log(`📄 Dashboard: Already on last page (${currentPage})`);
-    }
-  });
-  
-  // Sortable columns
+  // Sortable columns with visual indicators
   document.querySelectorAll('th.sortable').forEach(th => {
     th.addEventListener('click', () => {
       const field = th.dataset.sort;
       
+      console.log(`📊 Column clicked: ${field}`);
+      
       // Toggle direction if clicking the same column
       if (field === currentSort.field) {
         currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+        console.log(`🔄 Toggling sort direction for ${field}: ${currentSort.direction}`);
       } else {
         currentSort.field = field;
         currentSort.direction = 'asc';
+        console.log(`🆕 New sort column: ${field} (ascending)`);
       }
       
+      // Update visual indicators on column headers
+      updateSortIndicators();
+      
+      // Apply sorting
       applyFiltersAndSort();
     });
   });
@@ -2904,5 +3101,364 @@ function saveAllDMDrafts() {
   });
 }
 
-// Initial load
+// Open message drafting page (with email auth check)
+async function openMessageDrafting() {
+  console.log('🚀 Opening message drafting...');
+  
+  // First check if user is authenticated
+  try {
+    const response = await fetch('http://localhost:3000/api/auth/status');
+    const result = await response.json();
+    
+    if (result.authenticated) {
+      // Already authenticated, open message drafting directly
+      chrome.tabs.create({
+        url: chrome.runtime.getURL('src/pages/message-drafting.html')
+      });
+    } else {
+      // Not authenticated, show email login modal
+      openEmailLoginModal();
+    }
+  } catch (error) {
+    console.error('❌ Error checking auth status:', error);
+    // If error, show login modal
+    openEmailLoginModal();
+  }
+}
+
+// Email authentication functions
+function openEmailLoginModal() {
+  const modal = document.getElementById('email-login-modal');
+  modal.style.display = 'block';
+  
+  // Set up event listeners
+  document.querySelector('.close-email-modal').onclick = closeEmailLoginModal;
+  document.getElementById('dashboard-email-login-submit').onclick = handleDashboardEmailLogin;
+  
+  // Close modal when clicking outside
+  modal.onclick = (e) => {
+    if (e.target === modal) {
+      closeEmailLoginModal();
+    }
+  };
+}
+
+function closeEmailLoginModal() {
+  const modal = document.getElementById('email-login-modal');
+  modal.style.display = 'none';
+  
+  // Clear status message
+  const statusDiv = document.getElementById('dashboard-email-status-message');
+  statusDiv.style.display = 'none';
+}
+
+async function handleDashboardEmailLogin() {
+  const email = document.getElementById('dashboard-email-input').value;
+  const password = document.getElementById('dashboard-password-input').value;
+  
+  if (!password.trim()) {
+    showDashboardStatusMessage('Please enter your Gmail App Password', 'error');
+    return;
+  }
+  
+  showDashboardStatusMessage('Authenticating...', 'info');
+  
+  try {
+    const response = await fetch('http://localhost:3000/api/auth/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: email,
+        password: password
+      })
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      showDashboardStatusMessage('✅ Login successful! Opening message drafting...', 'success');
+      
+      setTimeout(() => {
+        closeEmailLoginModal();
+        chrome.tabs.create({
+          url: chrome.runtime.getURL('src/pages/message-drafting.html')
+        });
+      }, 1500);
+    } else {
+      showDashboardStatusMessage('❌ Login failed: ' + (result.error || 'Invalid credentials'), 'error');
+    }
+  } catch (error) {
+    console.error('❌ Email login error:', error);
+    showDashboardStatusMessage('❌ Connection error. Make sure the backend server is running.', 'error');
+  }
+}
+
+function showDashboardStatusMessage(message, type) {
+  const statusDiv = document.getElementById('dashboard-email-status-message');
+  statusDiv.textContent = message;
+  statusDiv.className = `status-message ${type}`;
+  statusDiv.style.display = 'block';
+}
+
+// Scanning Control Functions
+function setScanningState(isActive, scanningType) {
+  isScanningActive = isActive;
+  currentScanningType = scanningType;
+  
+  if (isActive) {
+    scanningStartTime = Date.now();
+    console.log(`🔄 DASHBOARD: Scanning started - ${scanningType}`);
+  } else {
+    const duration = scanningStartTime ? Math.round((Date.now() - scanningStartTime) / 1000) : 0;
+    console.log(`⏹️ DASHBOARD: Scanning stopped - ${scanningType || 'unknown'} (${duration}s)`);
+    scanningStartTime = null;
+    currentScanningType = null;
+  }
+  
+  updateStopButtonVisibility();
+}
+
+function updateStopButtonVisibility() {
+  if (stopScanningButton) {
+    // Always visible, but enable/disable based on scanning state
+    stopScanningButton.style.display = 'inline-block';
+    
+    if (isScanningActive) {
+      stopScanningButton.disabled = false;
+      stopScanningButton.style.animation = 'pulseRed 2s infinite';
+      
+      // Update button text based on scanning type
+      if (currentScanningType === 'jobSeekers') {
+        stopScanningButton.innerHTML = '⛔ Stop Finding Job Seekers';
+        stopScanningButton.title = 'Stop the LinkedIn profile collection process';
+      } else if (currentScanningType === 'research') {
+        stopScanningButton.innerHTML = '⛔ Stop Research';
+        stopScanningButton.title = 'Stop the prospect research process';
+      } else {
+        stopScanningButton.innerHTML = '⛔ Stop Scanning';
+        stopScanningButton.title = 'Stop current scanning process';
+      }
+    } else {
+      stopScanningButton.disabled = true;
+      stopScanningButton.innerHTML = '⏸️ No Active Scanning';
+      stopScanningButton.title = 'No scanning process is currently running';
+      stopScanningButton.style.animation = 'none';
+    }
+  }
+}
+
+function stopCurrentScanning() {
+  console.log('🛑 DASHBOARD: Stop scanning button clicked');
+  
+  if (!isScanningActive) {
+    console.log('⚠️ No active scanning to stop');
+    return;
+  }
+  
+  const scanType = currentScanningType;
+  const confirmed = confirm(`Stop ${scanType === 'jobSeekers' ? 'Job Seeker Finding' : 'Prospect Research'} process?\n\nAny partial progress will be saved.`);
+  
+  if (confirmed) {
+    console.log(`🛑 Stopping ${scanType} process...`);
+    
+    // Send stop signal to background script
+    chrome.runtime.sendMessage({
+      action: 'stopScanning',
+      scanningType: scanType
+    }, (response) => {
+      if (response && response.success) {
+        console.log(`✅ Successfully stopped ${scanType}`);
+        setScanningState(false, null);
+        showSuccess(`Stopped ${scanType === 'jobSeekers' ? 'job seeker finding' : 'prospect research'}. Partial progress has been saved.`);
+        loadProspects(); // Refresh data
+      } else {
+        console.log('❌ Failed to stop scanning:', response?.error);
+        showError('Failed to stop scanning. Please refresh the page if needed.');
+      }
+    });
+  }
+}
+
+// Hidden admin feature - handle title clicks for data wipe
+function handleTitleClick() {
+  titleClickCount++;
+  console.log(`🔍 Title click ${titleClickCount}/10`);
+  
+  // Clear any existing timer
+  if (titleClickTimer) {
+    clearTimeout(titleClickTimer);
+  }
+  
+  // Visual feedback for clicks
+  const titleElement = document.querySelector('.logo h1, h1');
+  if (titleElement) {
+    titleElement.style.transform = 'scale(0.95)';
+    titleElement.style.transition = 'all 0.1s ease';
+    setTimeout(() => {
+      titleElement.style.transform = 'scale(1)';
+    }, 100);
+    
+    // Progressive color change based on click count
+    const clickProgress = titleClickCount / 10;
+    const greenIntensity = Math.min(clickProgress * 255, 255);
+    const redIntensity = clickProgress > 0.5 ? Math.min((clickProgress - 0.5) * 2 * 255, 255) : 0;
+    
+    titleElement.style.color = `rgb(${redIntensity}, ${greenIntensity}, 0)`;
+    
+    setTimeout(() => {
+      titleElement.style.color = '';
+    }, 500);
+    
+    // Add subtle border indicator after 5 clicks
+    if (titleClickCount >= 5) {
+      titleElement.style.borderBottom = `2px solid rgba(${redIntensity}, ${greenIntensity}, 0, 0.5)`;
+      setTimeout(() => {
+        titleElement.style.borderBottom = '';
+      }, 1000);
+    }
+  }
+  
+  // If we reached 10 clicks, prompt for password
+  if (titleClickCount >= 10) {
+    console.log('🚨 ADMIN: 10 title clicks detected, prompting for password');
+    
+    const password = prompt('🔐 Admin Access Detected\n\nEnter password to wipe ALL dashboard data:');
+    
+    if (password === '0000') {
+      console.log('🗑️ ADMIN: Correct password, wiping all data...');
+      
+      // Confirm one more time
+      const finalConfirm = confirm('🚨 FINAL CONFIRMATION\n\nThis will permanently delete ALL prospects, research data, and settings.\n\nAre you absolutely sure?');
+      
+      if (finalConfirm) {
+        wipeAllDashboardData();
+      } else {
+        console.log('🚫 ADMIN: Data wipe cancelled by user');
+        showError('Data wipe cancelled.');
+      }
+    } else if (password !== null) {
+      console.log('❌ ADMIN: Incorrect password');
+      showError('Incorrect admin password.');
+    }
+    
+    // Reset click counter
+    titleClickCount = 0;
+  } else {
+    // Set timer to reset click counter after 10 seconds of inactivity
+    titleClickTimer = setTimeout(() => {
+      titleClickCount = 0;
+      console.log('🔄 Title click counter reset');
+    }, 10000);
+    
+    // Show subtle indication of progress (only visible in console)
+    if (titleClickCount >= 5) {
+      console.log(`🚨 ${10 - titleClickCount} more clicks to access admin wipe`);
+    }
+  }
+}
+
+// Wipe all dashboard data
+function wipeAllDashboardData() {
+  console.log('🗑️ ADMIN: Starting complete data wipe...');
+  
+  // Show loading state
+  if (totalProspectsElement) {
+    totalProspectsElement.textContent = '🗑️';
+  }
+  
+  // Clear all storage
+  chrome.storage.local.clear(() => {
+    console.log('✅ ADMIN: All storage cleared');
+    
+    // Clear any background script data
+    chrome.runtime.sendMessage({
+      action: 'clearAllData'
+    }, (response) => {
+      console.log('✅ ADMIN: Background script data cleared');
+      
+      // Reset all UI elements
+      allProspects = [];
+      filteredProspects = [];
+      
+      // Refresh dashboard to show empty state
+      updateStats();
+      applyFiltersAndSort();
+      
+      // Show success message
+      showSuccess('🗑️ ADMIN: All dashboard data has been completely wiped!');
+      
+      console.log('✅ ADMIN: Complete data wipe successful');
+      
+      // Reset scanning state
+      setScanningState(false, null);
+      
+      // Optional: Reload page after a delay for fresh start
+      setTimeout(() => {
+        if (confirm('Reload dashboard for fresh start?')) {
+          window.location.reload();
+        }
+      }, 3000);
+    });
+  });
+}
+
+// Listen for scanning status updates from background script
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  console.log('🔄 DASHBOARD: Message received:', request.action);
+  
+  // Scanning started
+  if (request.action === 'scanningStarted') {
+    console.log('🔄 Scanning started notification:', request.scanningType);
+    setScanningState(true, request.scanningType);
+  }
+  
+  // Scanning stopped
+  if (request.action === 'scanningStopped') {
+    console.log('⏹️ Scanning stopped notification:', request.scanningType);
+    setScanningState(false, null);
+  }
+  
+  // Real-time prospect updates
+  if (request.action === 'updateStats') {
+    console.log('📊 Stats update received:', request.totalProspects);
+    // Update the prospect count in real-time
+    if (totalProspectsElement) {
+      totalProspectsElement.textContent = request.totalProspects || 0;
+    }
+    
+    // Refresh full data
+    setTimeout(() => {
+      loadProspects();
+    }, 1000);
+  }
+  
+  // Research progress updates
+  if (request.action === 'researchProgress') {
+    console.log('🔬 Research progress:', request.completed, '/', request.total);
+    // Could add progress indicator here if needed
+  }
+  
+  // Individual prospect updates after research completion
+  if (request.action === 'prospectUpdated') {
+    console.log('✅ DASHBOARD: Prospect updated:', request.prospect?.name);
+    console.log('📊 DASHBOARD: Updated prospect data:', {
+      name: request.prospect?.name,
+      headline: request.prospect?.headline ? 'Found' : 'Missing',
+      jobSeekerScore: request.prospect?.jobSeekerScore || 0,
+      emails: request.prospect?.activityEmails?.length || 0,
+      researchStatus: request.prospect?.researchStatus
+    });
+    
+    // Refresh dashboard to show updated data
+    setTimeout(() => {
+      console.log('🔄 DASHBOARD: Refreshing to show research updates...');
+      console.log('📊 DASHBOARD: About to reload prospects from storage...');
+      loadProspects();
+    }, 1000); // Increased delay to ensure storage write completes
+  }
+});
+
+// Initialize dashboard
 initializeDashboard();

@@ -1,321 +1,139 @@
-# 🌐 TheNetwrk - AI-Powered Multi-Platform Prospect Discovery
+# TheNetwrk – LinkedIn Job Seeker Discovery (Chrome Extension + Backend)
 
 <div align="center">
 
 ![TheNetwrk Logo](src/assets/icon128.png)
 
-**Discover job seekers across multiple platforms, analyze with AI, and send personalized outreach emails**
+**Breadth first (collect 1000s of LinkedIn profiles) → Depth later (research each profile, extract emails, analyze with AI).**
 
 [![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-green?style=for-the-badge&logo=google-chrome)](https://chrome.google.com/webstore)
-[![JavaScript](https://img.shields.io/badge/JavaScript-ES6+-yellow?style=for-the-badge&logo=javascript)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
 [![Node.js](https://img.shields.io/badge/Node.js-Backend-green?style=for-the-badge&logo=node.js)](https://nodejs.org/)
 [![AI Powered](https://img.shields.io/badge/AI-Powered-blue?style=for-the-badge&logo=openai)](https://openai.com/)
 
 </div>
 
-## 🚀 Overview
+### What this does today
+- **Phase 1 – Breadth (LinkedIn search pages):** Scroll-and-collect names + profile URLs from LinkedIn search results, saving thousands to the dashboard.
+- **Phase 2 – Depth (per profile research):**
+  - Main profile: scroll, click “see more”, collect all text, extract name/headline/about/experience/skills
+  - Contact info: auto-clicks the “Contact info” modal and extracts emails if present
+  - Comments: opens a separate tab and auto-scrolls comments to the bottom, copies all text, and parses for emails near the profile owner’s name
+  - AI: sends comprehensive profile text to backend `/api/analyze-job-seeker-comprehensive` for scoring and structured fields
+- **Dashboard:** Results and AI fields map back to the stored prospect.
 
-TheNetwrk is a revolutionary Chrome extension that transforms how you discover and connect with job seekers. Instead of being limited to LinkedIn Premium, it searches across **multiple platforms** (LinkedIn, Google, Reddit, GitHub, portfolio sites) to find contact information and assess job-seeking intent using AI.
-
-### ✨ Key Features
-
-- 🔍 **Multi-Platform Search**: LinkedIn + Google + Reddit + GitHub + Portfolio sites
-- 🤖 **AI Analysis**: Job seeker scoring, career stage detection, and personalized messaging
-- 📧 **Direct Email**: Send emails from your Gmail account with AI-generated messages
-- 🎯 **Smart Targeting**: Identifies career changers, bootcamp graduates, and active job seekers
-- 💎 **Contact Discovery**: Finds emails, phones, and social profiles across the web
-- 📊 **Dashboard**: Beautiful interface to manage prospects and track outreach
-
-## 🎯 How It Works
-
+### Architecture (high level)
 ```mermaid
-graph LR
-    A[LinkedIn Profile] --> B[Add to TheNetwrk]
-    B --> C[Multi-Platform Search]
-    C --> D[AI Analysis]
-    D --> E[Contact Discovery]
-    E --> F[Email Outreach]
-    
-    C --> G[LinkedIn Data]
-    C --> H[Google Search]
-    C --> I[Reddit Posts]
-    C --> J[GitHub Profile]
-    C --> K[Portfolio Sites]
-    
-    G --> D
-    H --> D
-    I --> D
-    J --> D
-    K --> D
-    
-    D --> L[Job Seeker Score]
-    D --> M[Career Stage]
-    D --> N[Personalized Message]
+sequenceDiagram
+  participant User
+  participant BG as background.js
+  participant TabA as Content Script (Main Profile)
+  participant TabB as Content Script (Comments)
+  participant API as backend/server.js
+  participant AI as OpenAI
+
+  User->>BG: Start Massive Search (Phase 1)
+  BG->>TabA: Collect URLs on LinkedIn search page
+  TabA-->>BG: Profiles found (saved to dashboard)
+
+  User->>BG: Start Deep Research (Phase 2)
+  BG->>TabA: Open profile in new tab, start comprehensiveResearch
+  TabA->>TabA: Scroll, click see more, extract header/about/exp/skills
+  TabA->>TabA: Click Contact info modal → extract emails
+  TabA->>BG: Request comments scraping in new tab
+  BG->>TabB: Open comments tab and command to scrape
+  TabB->>TabB: Auto-scroll to bottom, copy all text
+  TabB-->>BG: Emails + comments results
+  BG-->>TabA: commentsResultsReady
+  TabA->>API: POST /api/analyze-job-seeker-comprehensive (combined data)
+  API->>AI: Prompt with full profile text
+  AI-->>API: Structured analysis
+  API-->>TabA: JSON analysis fields
+  TabA-->>BG: researchComplete (profile + AI fields)
+  BG->>Dashboard: Enhance prospect with research + AI fields
 ```
 
-### Multi-Platform Discovery Process:
-
-1. **LinkedIn**: Profile data, recent activity, job seeking signals
-2. **Google Search**: `"Name" portfolio email contact`
-3. **Reddit**: `"Name" job search career change`
-4. **GitHub**: Developer profiles and repositories
-5. **Portfolio Sites**: Behance, Dribbble, personal websites
-6. **AI Analysis**: Job seeker scoring and personalized messaging
-
-## 📋 Quick Start
+## Setup
 
 ### Prerequisites
-
-- Chrome Browser
-- Node.js 16+
-- Gmail account with App Password
+- Chrome (logged into LinkedIn)
+- Node.js 18+
 - OpenAI API key
 
-### Installation
-
+### Install & Run
 ```bash
-# 1. Clone repository
+# 1) Clone
 git clone https://github.com/LawrenceHua/The-Netwrk-Google-Chrome-Extension.git
 cd The-Netwrk-Google-Chrome-Extension
 
-# 2. Install backend dependencies
+# 2) Backend
 cd backend
 npm install
-
-# 3. Configure environment
-cp .env.example .env
-# Add your OpenAI API key to .env
-
-# 4. Start backend server
+cp .env.example .env   # create if missing
+# .env
+# OPENAI_API_KEY=your_key
+# PORT=3000
 npm start
 
-# 5. Load Chrome extension
-# Open chrome://extensions/
-# Enable Developer mode
-# Click "Load unpacked" and select project folder
-
-# 6. Setup Gmail authentication in extension
+# 3) Extension
+# chrome://extensions → Enable Developer mode → Load unpacked → select project root
 ```
 
-### Step-by-Step Setup Guide
+## Usage
+1) In LinkedIn search results, use the extension to start **Massive Search** (Phase 1). Profiles are saved to the dashboard.
+2) Start **Deep Research** (Phase 2). For each prospect:
+   - Main profile text is collected (with “see more” expansion)
+   - “Contact info” modal is clicked and parsed for emails
+   - Comments are scraped in a second tab, scrolled to the bottom (no early “mo” stop), copied, and parsed for emails near the owner’s name
+   - Combined data is sent to the backend for AI scoring
+3) Open the dashboard to see enhanced prospects with AI fields and any emails found.
 
-<details>
-<summary>📧 Gmail Setup (Click to expand)</summary>
+## What we collect and analyze
+- Name, headline, about summary
+- Experience (title at company), skills (common tech skills)
+- Contact emails from the “Contact info” modal (when available)
+- Comment-derived emails (via full-page text parsing in comments)
+- Comprehensive AI fields from backend:
+  - `jobSeekerScore`, `isJobSeeker`, `confidence`
+  - `careerStage`, `techBackground`, `industry`, `currentRole`
+  - `experienceYears`, `techProficiency`
+  - `contactability`, `remotePreference`, `networkingActivity`
+  - `summary`, `notes`, `keySkills`, `jobSeekerIndicators`, `jobSeekingSignals`
+  - `extractedEmails` (deduped from contact + comments)
 
-1. **Enable 2-Factor Authentication** on your Google account
-2. **Generate App Password**:
-   - Go to [Google App Passwords](https://myaccount.google.com/apppasswords)
-   - Select "Mail" → "Other (Custom name)"
-   - Enter "TheNetwrk Extension"
-   - Copy the 16-character password
-3. **Login in Extension**: Use your Gmail + App Password
+## Backend API (implemented)
+```http
+POST /api/analyze-job-seeker-comprehensive
+Content-Type: application/json
 
-</details>
-
-<details>
-<summary>🔧 Backend Configuration (Click to expand)</summary>
-
-1. **Create `.env` file** in backend folder:
-```env
-OPENAI_API_KEY=your_openai_api_key_here
-PORT=3000
-```
-
-2. **Start the server**:
-```bash
-cd backend
-npm start
-```
-
-3. **Verify it's running**: Visit `http://localhost:3000/api/health`
-
-</details>
-
-## 🔍 Multi-Platform Discovery
-
-### What It Searches For:
-
-#### **LinkedIn**
-- Profile information and recent activity
-- Job seeking signals in posts/comments
-- Skills, experience, and career stage
-
-#### **Google Search**
-- `"John Smith" portfolio website`
-- `"John Smith" site:github.com`
-- `"John Smith" email contact`
-- `"John Smith" @gmail.com`
-
-#### **Reddit**
-- `"John Smith" site:reddit.com "looking for work"`
-- Career change discussions
-- Tech pivot conversations
-- Job seeking posts
-
-#### **Portfolio Sites**
-- Behance and Dribbble profiles
-- Personal websites and contact pages
-- GitHub repositories and profiles
-
-## 🤖 AI-Powered Analysis
-
-For each prospect, the AI analyzes:
-
-```json
 {
-  "jobSeekerScore": 85,           // 0-100% likelihood of job seeking
-  "careerStage": "Mid-level",     // Entry/Mid/Senior/Executive
-  "techBackground": "Strong",     // None/Basic/Moderate/Strong
-  "industry": "Software Dev",     // Primary industry
-  "keySkills": ["React", "Node"], // Top relevant skills
-  "jobSeekingSignals": 3,         // Active indicators (0-5)
-  "personalizedMessage": "Hi John, I noticed your recent React project..."
+  name, headline, about, experiences, skills,
+  commentsWithAtSymbols, contactEmails, commentEmails,
+  combinedText, linkedinUrl
 }
+
+→ Returns all fields needed by the dashboard (see above)
 ```
 
-## 📊 Dashboard Features
+## Notes on reliability
+- The “Contact info” click uses multiple selectors and scroll-into-view before clicking. It logs attempts and falls back to ESC to close the modal.
+- Comments scraping runs in a separate tab and auto-scrolls to the bottom; it does not stop on partial matches like “mo”. This avoids premature termination.
+- Content script acknowledges long-running actions immediately to avoid Chrome’s “message channel closed” errors; final results are sent async via runtime messages.
 
-### Prospect Management
-- **Smart Filtering**: Sort by job seeker score, email availability
-- **Bulk Actions**: Send emails to multiple prospects
-- **Status Tracking**: Pending, drafted, sent emails
-- **Contact Indicators**: Visual email/phone availability
-
-### Email Campaign
-- **AI Messages**: Personalized based on prospect analysis
-- **Gmail Integration**: Sends from your account
-- **Professional Templates**: Consistent formatting
-- **Delivery Tracking**: Success/failure status
-
-## 🛡️ Security & Privacy
-
-- **Local Storage**: All prospect data stored locally in browser
-- **Secure Auth**: Gmail App Passwords (not regular passwords)
-- **No Data Collection**: Extension doesn't send data to external servers
-- **Rate Limiting**: Respectful scraping with delays
-- **Environment Variables**: No hardcoded secrets
-
-## 🔧 API Endpoints
-
-```bash
-# Authentication
-POST /api/auth/login     # Gmail login
-GET  /api/auth/status    # Check auth status
-POST /api/auth/logout    # Logout
-
-# Email Services  
-POST /api/send-email     # Send personalized email
-GET  /api/emails         # Get email history
-
-# AI Analysis
-POST /api/analyze        # Analyze prospect data
-POST /api/generate-message # Generate personalized message
-
-# Prospects
-GET  /api/prospects      # Get all prospects
-POST /api/prospects      # Add new prospect
+## Project structure
 ```
-
-## 🎨 Customization
-
-### Message Templates
-
-Edit in `src/js/message-drafting.js`:
-
-```javascript
-function formatLinkedInMessage(name, message) {
-  return `Hey ${name},
-
-${message}
-
-Best regards,
-Lawrence
-Growth Intern at TheNetwrk`;
-}
-```
-
-### Scoring Criteria
-
-Modify AI prompts in `backend/server.js` to adjust job seeker scoring.
-
-## 🧪 Testing
-
-### Backend API
-
-```bash
-# Health check
-curl http://localhost:3000/api/health
-
-# Test authentication
-curl -X POST http://localhost:3000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"your@gmail.com","password":"app-password"}'
-```
-
-### Extension Testing
-
-1. Load extension in Chrome
-2. Visit LinkedIn profiles
-3. Check console logs (F12)
-4. Verify dashboard functionality
-
-## 📁 Project Structure
-
-```
-TheNetwrk-Google-Chrome-Extension/
+TheNetwrk/
 ├── src/
-│   ├── assets/          # Extension icons and images
-│   ├── css/             # Stylesheets
-│   ├── js/              # JavaScript modules
-│   │   ├── background.js    # Service worker
-│   │   ├── content.js       # Content script
-│   │   ├── google-scout.js  # Multi-platform search
-│   │   ├── deep-researcher.js # LinkedIn scraping
-│   │   └── ...
-│   └── pages/           # HTML pages
+│   ├── js/
+│   │   ├── background.js          # Orchestrates tabs, saves results, merges AI fields
+│   │   ├── content.js             # Scraping logic (main + comments auto-detect)
+│   │   └── url-collector.js       # Breadth URL collection (search results)
 ├── backend/
-│   ├── server.js        # Express server
-│   ├── package.json     # Dependencies
-│   └── .env.example     # Environment template
-├── manifest.json        # Extension manifest
-└── README.md           # This file
+│   └── server.js                  # Express server + OpenAI integration
+├── manifest.json                  # Chrome MV3 manifest
+└── README.md
 ```
 
-## 🤝 Contributing
+## License
+This project is proprietary software owned by Lawrence Hua. All rights reserved. See the [LICENSE](LICENSE).
 
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open Pull Request
-
-## 📝 License
-
-This project is proprietary software owned by Lawrence Hua. All rights reserved. See the [LICENSE](LICENSE) file for details.
-
-For permission requests or commercial use, contact: lawrencehua2@gmail.com
-
-## 📞 Support
-
-- **Issues**: [GitHub Issues](https://github.com/LawrenceHua/The-Netwrk-Google-Chrome-Extension/issues)
-- **Email**: lawrencehua2@gmail.com
-
-## 🎯 Roadmap
-
-- [ ] Chrome Web Store publication
-- [ ] Additional platform integrations (Twitter, Instagram)
-- [ ] Advanced AI scoring algorithms
-- [ ] Team collaboration features
-- [ ] Analytics and reporting dashboard
-
----
-
-<div align="center">
-
-**Made with ❤️ by Lawrence Hua**
-
-*Revolutionizing recruitment through AI and multi-platform discovery*
-
-[⭐ Star this repo](https://github.com/LawrenceHua/The-Netwrk-Google-Chrome-Extension) | [🐛 Report Bug](https://github.com/LawrenceHua/The-Netwrk-Google-Chrome-Extension/issues) | [💡 Request Feature](https://github.com/LawrenceHua/The-Netwrk-Google-Chrome-Extension/issues)
-
-</div>
+For permission inquiries: lawrencehua2@gmail.com

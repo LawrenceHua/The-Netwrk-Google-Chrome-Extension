@@ -14,19 +14,19 @@
         <p class="subtitle">Prospect Dashboard</p>
       </div>
       <div class="header-actions">
-        <button id="refresh-data" class="icon-button" title="Refresh Data">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M23 4v6h-6"></path>
-            <path d="M1 20v-6h6"></path>
-            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-          </svg>
-        </button>
-        <button id="settings" class="icon-button" title="Settings">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="3"></circle>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-          </svg>
-        </button>
+        <div class="left-actions">
+          <button id="stop-scanning-btn" class="stop-action-btn" title="Stop Current Scanning Process">
+            ⛔ Stop Scanning
+          </button>
+          <button id="export-csv-btn" class="export-action-btn" title="Export All Prospects to CSV">
+            📊 Export CSV
+          </button>
+        </div>
+        <div class="right-actions">
+          <button id="draft-messages-btn" class="primary-action-btn" title="Draft Personalized Messages">
+            ✍️ Draft Messages
+          </button>
+        </div>
       </div>
     </header>
     
@@ -40,12 +40,12 @@
         <span class="stat-label">Contacted</span>
       </div>
       <div class="stat-card">
-        <span class="stat-value" id="responded-count">0</span>
-        <span class="stat-label">Responded</span>
+        <span class="stat-value" id="fully-researched-count">0</span>
+        <span class="stat-label">Fully Researched</span>
       </div>
       <div class="stat-card">
-        <span class="stat-value" id="conversion-rate">0%</span>
-        <span class="stat-label">Conversion Rate</span>
+        <span class="stat-value" id="email-found-count">0</span>
+        <span class="stat-label">Emails Found</span>
       </div>
     </div>
     
@@ -61,12 +61,14 @@
       </div>
       
       <div class="filter-container">
-        <select id="status-filter">
-          <option value="all">All Statuses</option>
+        <select id="research-status-filter">
+          <option value="all">All Research Status</option>
           <option value="new">New</option>
-          <option value="contacted">Contacted</option>
-          <option value="responded">Responded</option>
-          <option value="not-interested">Not Interested</option>
+          <option value="basic-info">Basic Info Only</option>
+          <option value="partially-researched">Partially Researched</option>
+          <option value="fully-researched">Fully Researched</option>
+          <option value="email-found">Email Found</option>
+          <option value="research-failed">Research Failed</option>
         </select>
         
         <button id="clear-filters" class="text-button">Clear Filters</button>
@@ -78,11 +80,9 @@
         <thead>
           <tr>
             <th class="sortable" data-sort="name">Name</th>
-            <th class="sortable" data-sort="headline">Headline</th>
-            <th class="sortable" data-sort="location">Location</th>
+            <th class="sortable" data-sort="researchStatus">Research Status</th>
             <th class="sortable" data-sort="email">Email</th>
-            <th class="sortable" data-sort="status">Status</th>
-            <th class="sortable" data-sort="contactAttempts">Contact Attempts</th>
+            <th class="sortable" data-sort="jobSeekerScore">Job Seeker Score</th>
             <th class="sortable" data-sort="dateAdded">Date Added</th>
             <th>Actions</th>
           </tr>
@@ -90,25 +90,13 @@
         <tbody id="prospects-table-body">
           <!-- Prospects will be loaded here -->
           <tr class="empty-row">
-            <td colspan="8" class="empty-message">No prospects found. Start by visiting LinkedIn profiles.</td>
+            <td colspan="6" class="empty-message">No prospects found. Start by visiting LinkedIn profiles.</td>
           </tr>
         </tbody>
       </table>
     </div>
     
-    <div class="pagination">
-      <button id="prev-page" class="pagination-button" disabled>
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="15 18 9 12 15 6"></polyline>
-        </svg>
-      </button>
-      <span id="pagination-info">Page 1 of 1</span>
-      <button id="next-page" class="pagination-button" disabled>
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="9 18 15 12 9 6"></polyline>
-        </svg>
-      </button>
-    </div>
+    <!-- Pagination removed - showing all prospects in one scrollable list -->
     
     <!-- Prospect Detail Modal -->
     <div id="prospect-modal" class="modal">
@@ -123,6 +111,43 @@
         <div class="modal-footer">
           <button id="send-message" class="primary-button">Send Message</button>
           <button class="close-button">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Email Login Modal for Dashboard -->
+  <div id="email-login-modal" class="modal">
+    <div class="modal-content email-login-modal-content">
+      <div class="modal-header">
+        <h3>📧 Email Authentication</h3>
+        <span class="close-email-modal">&times;</span>
+      </div>
+      <div class="modal-body">
+        <div class="email-login-form">
+          <p class="email-help">Login with your Gmail credentials to send personalized emails directly from your account.</p>
+          
+          <div class="form-group">
+            <label for="dashboard-email-input">Gmail Address:</label>
+            <input type="email" id="dashboard-email-input" value="lawrencehua2@gmail.com" readonly>
+          </div>
+          
+          <div class="form-group">
+            <label for="dashboard-password-input">App Password:</label>
+            <input type="password" id="dashboard-password-input" placeholder="Enter your Gmail App Password">
+            <small class="help-text">
+              Use your 16-character Gmail App Password, not your regular password. 
+              <a href="https://myaccount.google.com/apppasswords" target="_blank">Get App Password</a>
+            </small>
+          </div>
+          
+          <div class="email-actions">
+            <button id="dashboard-email-login-submit" class="primary-action-btn">
+              🔐 Login & Open Message Drafting
+            </button>
+          </div>
+          
+          <div id="dashboard-email-status-message" class="status-message"></div>
         </div>
       </div>
     </div>
