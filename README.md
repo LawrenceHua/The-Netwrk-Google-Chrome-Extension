@@ -1,3 +1,7 @@
+> Here's the pitch that started it all: [The Netwrk Outreach Tool](https://docs.google.com/presentation/d/1GwGM1NzUlpGz1CELFfxQ1nJtJ3jsnOR9MSgapJfi34U/edit?usp=sharing)
+>
+> Strategically pitched to the founder; the founder acted on the recommendation and developed the first production version within 2 weeks.
+
 # TheNetwrk – LinkedIn Job Seeker Discovery (Chrome Extension + Backend)
 
 <div align="center">
